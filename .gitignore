@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+# Secrets: only .env.example is shared
+.env
+.env.*
+!.env.example
+# Runtime data
+uploads/
+.cache/
+data/raw/weather_cache.json
+evals/results/*
+!evals/results/summary.json
+!evals/results/.gitkeep
+# Web
+node_modules/
+web/dist/
+web/.vite/
+web/.env
+web/.env.*
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+# Claude Code personal settings (the shared .claude/settings.json IS committed)
+.claude/settings.local.json
