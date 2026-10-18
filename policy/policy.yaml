@@ -1,0 +1,47 @@
+# MargaMitra rules. Every track reads this file; only the team changes it.
+# Money rates are assumed planning rates for the demo, not an official schedule of rates.
+city: Surathkal
+no_dig_days_after_restoration: 1095        # 3 years
+
+risk:
+  heavy_rain_mm_24h: 50                      # open trenches on low-lying roads move out of these days
+  poor_aqi_threshold: 201                    # India AQI band "Poor" starts at 201
+  low_lying_percentile: 20                   # lowest 20% of segment elevations count as low-lying
+
+negotiation:
+  max_rounds: 3
+  round_timeout_s: 20
+
+approvals:
+  emergency: allow_then_review               # emergency digs start at once and are reviewed after
+  tiers:                                     # first tier whose limits fit wins
+    - {name: auto, max_works_changed: 1, max_cost_delta_inr: 10000, single_department: true}
+    - {name: department_officer, max_works_changed: 4, max_cost_delta_inr: 100000, single_department: true}
+    - {name: ward_engineer, max_works_changed: 50, max_cost_delta_inr: 1000000, single_department: false}
+    - {name: commissioner, max_works_changed: 100000, max_cost_delta_inr: 1000000000, single_department: false}
+
+verification:
+  random_inspection_rate: 0.10
+  phash_max_distance: 8
+  place_max_m: 50
+  time_slack_days: 2
+  vision_min_confidence: 0.7
+  resident_confirmations_needed: 1
+
+objective_weights:
+  delay: 1.0
+  disruption: 1.0
+  dust: 0.5
+  rain: 2.0
+  excavations: 1.5
+
+costs:
+  per_metre_inr: {water: 3800, drainage: 4200, gas: 3000, power: 2600, telecom: 1500, roads: 900}
+  trenchless_factor: 1.8                     # trenchless costs more but closes no trench on the road
+  trenchless_pit_every_m: 60                 # one 2 m² pit per 60 m of trenchless work
+  trench_width_m: 0.9
+  restoration_per_m2_inr: 1200
+  excavation_share: 0.4                      # part of the dig cost that is pure excavation
+  delay_per_day_inr: 2000
+  working_hours_per_day: 10
+  deposit_share: 0.10                        # deposit held until the repair is verified
