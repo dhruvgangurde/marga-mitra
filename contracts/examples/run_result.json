@@ -1,0 +1,18 @@
+{
+  "run_id": "RUN-0001",
+  "status": "waiting_approval",
+  "plan_id": "P-FAKE",
+  "approval_id": "A-0001",
+  "metrics": {
+    "plan_id": "P-FAKE",
+    "excavations": 4,
+    "digs_per_road": 1.0,
+    "lane_closure_hours": 0.0,
+    "trench_hours_in_rain": 0.0,
+    "clashes": 0,
+    "days_late": 0.0,
+    "cost_inr": 0,
+    "dust_score": 0.0
+  },
+  "note": ""
+}

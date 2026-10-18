@@ -1,0 +1,41 @@
+[
+  {
+    "type": "negotiation.message",
+    "data": {
+      "msg_id": "M1",
+      "run_id": "RUN-0001",
+      "round": 1,
+      "sender": "coordinator",
+      "recipients": [
+        "water",
+        "telecom"
+      ],
+      "type": "NOTICE",
+      "work_ids": [
+        "W-001",
+        "T-001"
+      ],
+      "body": "2 works clash on Test Road.",
+      "options": [],
+      "chosen_option": null,
+      "ts": "2026-11-02T10:00:00Z"
+    },
+    "ts": "2026-11-02T10:00:00Z"
+  },
+  {
+    "type": "approval.requested",
+    "data": {
+      "approval_id": "A-0001",
+      "plan_id": "P-FAKE",
+      "run_id": "RUN-0001",
+      "tier": "ward_engineer",
+      "status": "pending",
+      "summary": "New plan P-FAKE",
+      "requested_at": "2026-11-02T10:00:00Z",
+      "decided_at": null,
+      "decided_by": null,
+      "reason": null
+    },
+    "ts": "2026-11-02T10:00:00Z"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "verification_id": "V-0001",
+  "work_id": "W-001",
+  "result": "verified",
+  "checks": [
+    {
+      "name": "place",
+      "status": "ok",
+      "detail": "Both photos within 12 m of the site"
+    },
+    {
+      "name": "reuse",
+      "status": "ok",
+      "detail": "Not seen in any other work"
+    }
+  ],
+  "deposit_inr": 200000,
+  "deposit_released": true,
+  "decided_at": "2026-11-02T10:00:00Z"
+}

@@ -1,0 +1,176 @@
+[
+  {
+    "work": {
+      "work_id": "W-001",
+      "dept": "water",
+      "title": "Water main",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0001",
+        "S-0002"
+      ],
+      "length_m": 400.0,
+      "requested_start": 8,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 5,
+          "cost_inr": 1952000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        }
+      ],
+      "priority": 3,
+      "depends_on": [],
+      "deposit_inr": 200000,
+      "is_emergency": false,
+      "done": false
+    },
+    "assignment": {
+      "work_id": "W-001",
+      "start_day": 8,
+      "end_day": 12,
+      "mode": "open_cut",
+      "shared_group": null,
+      "reason": "As the department asked."
+    },
+    "status": "planned"
+  },
+  {
+    "work": {
+      "work_id": "T-001",
+      "dept": "telecom",
+      "title": "Fibre duct",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0001",
+        "S-0002"
+      ],
+      "length_m": 400.0,
+      "requested_start": 10,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 3,
+          "cost_inr": 1032000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        },
+        {
+          "mode": "trenchless",
+          "duration_days": 4,
+          "cost_inr": 1096800,
+          "lanes_closed": 0,
+          "dust": 0.0
+        }
+      ],
+      "priority": 3,
+      "depends_on": [],
+      "deposit_inr": 100000,
+      "is_emergency": false,
+      "done": false
+    },
+    "assignment": {
+      "work_id": "T-001",
+      "start_day": 10,
+      "end_day": 12,
+      "mode": "open_cut",
+      "shared_group": null,
+      "reason": "As the department asked."
+    },
+    "status": "planned"
+  },
+  {
+    "work": {
+      "work_id": "G-001",
+      "dept": "gas",
+      "title": "Gas line",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0003"
+      ],
+      "length_m": 200.0,
+      "requested_start": 9,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 4,
+          "cost_inr": 816000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        },
+        {
+          "mode": "trenchless",
+          "duration_days": 5,
+          "cost_inr": 1089600,
+          "lanes_closed": 0,
+          "dust": 0.0
+        }
+      ],
+      "priority": 3,
+      "depends_on": [],
+      "deposit_inr": 80000,
+      "is_emergency": false,
+      "done": false
+    },
+    "assignment": {
+      "work_id": "G-001",
+      "start_day": 9,
+      "end_day": 12,
+      "mode": "open_cut",
+      "shared_group": null,
+      "reason": "As the department asked."
+    },
+    "status": "planned"
+  },
+  {
+    "work": {
+      "work_id": "R-001",
+      "dept": "roads",
+      "title": "Resurfacing",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0001",
+        "S-0002",
+        "S-0003"
+      ],
+      "length_m": 600.0,
+      "requested_start": 9,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 3,
+          "cost_inr": 1188000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        }
+      ],
+      "priority": 3,
+      "depends_on": [
+        "W-001",
+        "T-001",
+        "G-001"
+      ],
+      "deposit_inr": 120000,
+      "is_emergency": false,
+      "done": false
+    },
+    "assignment": {
+      "work_id": "R-001",
+      "start_day": 9,
+      "end_day": 11,
+      "mode": "open_cut",
+      "shared_group": null,
+      "reason": "As the department asked."
+    },
+    "status": "planned"
+  }
+]

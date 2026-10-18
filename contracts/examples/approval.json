@@ -1,0 +1,12 @@
+{
+  "approval_id": "A-0001",
+  "plan_id": "P-FAKE",
+  "run_id": "RUN-0001",
+  "tier": "ward_engineer",
+  "status": "pending",
+  "summary": "New plan P-FAKE",
+  "requested_at": "2026-11-02T10:00:00Z",
+  "decided_at": null,
+  "decided_by": null,
+  "reason": null
+}

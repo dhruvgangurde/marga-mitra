@@ -1,0 +1,15 @@
+[
+  {
+    "seq": 1,
+    "ts": "2026-11-02T10:00:00Z",
+    "actor": "scheduler",
+    "action": "plan.decided",
+    "entity": "plan:P-FAKE",
+    "summary": "Scheduler made a new plan",
+    "payload": {
+      "run_id": "RUN-0001"
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "hash": "d2e2d40eaf7c2ee3cdd2b225158b523f11e5feac9939d994c488041047f2ca38"
+  }
+]
