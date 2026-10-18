@@ -1,0 +1,20 @@
+#!/bin/sh
+# Blocks any commit that credits an AI tool, or whose author or committer is an AI account.
+# Turn it on once per clone:  git config core.hooksPath .githooks
+msg_file="$1"
+ai='claude|anthropic|gemini|antigravity|copilot|openai|chatgpt|cursor|codeium|windsurf|devin|\[bot\]'
+if grep -qiE "^(co-authored-by|generated-by|assisted-by):" "$msg_file" \
+  && grep -iE "^(co-authored-by|generated-by|assisted-by):" "$msg_file" | grep -qiE "$ai"; then
+  echo "commit-msg: remove the AI co-author line, then commit again." >&2
+  exit 1
+fi
+if grep -qiE "generated (with|by) .*($ai)|claude-session:|claude\.ai/code|claude\.com/claude-code" "$msg_file"; then
+  echo "commit-msg: remove the 'Generated with ...' / session line, then commit again." >&2
+  exit 1
+fi
+who="$(git var GIT_AUTHOR_IDENT) $(git var GIT_COMMITTER_IDENT)"
+if echo "$who" | grep -qiE "$ai"; then
+  echo "commit-msg: author or committer looks like an AI account ($who). Set your own name and email." >&2
+  exit 1
+fi
+exit 0
