@@ -1,0 +1,5 @@
+/* MargaMitra app shell. Layout only; colours and sizes come from tokens. */
+.mm-app-loading { margin: 0; padding: var(--space-16) var(--space-6); text-align: center; color: var(--ink-3); }
+.mm-app-notfound { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-16) var(--space-10); }
+.mm-app-rolemenu { position: fixed; top: 64px; right: 16px; z-index: var(--z-modal); width: 260px; }
+.mm-app-rolemenu__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
