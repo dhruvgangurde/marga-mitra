@@ -1,4 +1,4 @@
-"""Cut the OpenStreetMap roads into segments of at most 300 m."""
+﻿"""Cut the OpenStreetMap roads into segments of at most 300 m."""
 
 from __future__ import annotations
 
@@ -148,4 +148,6 @@ def build_segments() -> list[Segment]:
 
 
 def load_segments() -> list[Segment]:
-    return build_segments()
+    from data.elevation import apply_elevation
+
+    return apply_elevation(build_segments())
