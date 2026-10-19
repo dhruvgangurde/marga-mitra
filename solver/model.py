@@ -48,15 +48,37 @@ def allowed(scenario: Scenario, constraints: SolveConstraints, work: Work, optio
     return not (option.mode == Mode.open_cut and protected_on(scenario, work, start))
 
 
+# The weights turn choices into costs only in the three functions below.
+def _own_cost(work: Work, option: WorkModeOption, start: int, w: dict[str, float]) -> int:
+    shift = start - work.requested_start
+    return option.cost_inr // 1000 + round(2 * w["delay"]) * max(0, shift) + abs(shift)
+
+
 def _choice_cost(work: Work, option: WorkModeOption, start: int, segments_by_id: dict[str, Segment],
                  w: dict[str, float]) -> int:
-    """The one place where the weights turn a choice into a cost."""
-    shift = start - work.requested_start
-    cost = option.cost_inr // 1000 + round(2 * w["delay"]) * max(0, shift) + abs(shift)
+    cost = _own_cost(work, option, start, w)
     cost += round(w["disruption"] * costs.lane_closure_hours(work, option.mode, option.duration_days, segments_by_id))
     if option.mode == Mode.open_cut:
         cost += round(100 * w["excavations"])
     return cost
+
+
+def _trench_cost(members: list[Work], group: ParallelGroup, start: int, duration: int,
+                 segments_by_id: dict[str, Segment], w: dict[str, float]) -> int:
+    cost = sum(_own_cost(m, costs.option_for(m, Mode.open_cut), start, w) for m in members)
+    hours = max(costs.lane_closure_hours(m, Mode.open_cut, duration, segments_by_id) for m in members)
+    return cost + round(w["disruption"] * hours) + round(100 * w["excavations"]) - group.saving_inr // 1000
+
+
+def _trench_starts(scenario: Scenario, constraints: SolveConstraints, members: list[Work]) -> tuple[int, list[int]]:
+    """The trench length (the longest member) and every start day that every member allows."""
+    if any(m.done or all(o.mode != Mode.open_cut for o in m.modes) for m in members):
+        return 0, []
+    duration = max(costs.option_for(m, Mode.open_cut).duration_days for m in members)
+    options = [costs.option_for(m, Mode.open_cut).model_copy(update={"duration_days": duration}) for m in members]
+    starts = [s for s in range(scenario.horizon_days)
+              if all(allowed(scenario, constraints, m, o, s) for m, o in zip(members, options, strict=True))]
+    return duration, starts
 
 
 # (choice literal, start, duration, open cut) for every way a work can be placed
@@ -86,18 +108,72 @@ def _add_order(m: cp_model.CpModel, scenario: Scenario, built: Built, slots: dic
                 m.add(start[w.work_id] >= end_any[p]).only_enforce_if(built.placed[w.work_id])
 
 
+def _accept_groups(scenario: Scenario, constraints: SolveConstraints, built: Built) -> dict[str, tuple[int, list[int]]]:
+    """Accepted groups that fit, with their trench length and allowed starts; the others get a note."""
+    if not constraints.use_groups:
+        return {}
+    works = {w.work_id: w for w in scenario.works}
+    fits: dict[str, tuple[int, list[int]]] = {}
+    taken: set[str] = set()
+    for group in scenario.parallel_groups:
+        # a work can sit in only one trench, so a later group that reuses a member is skipped
+        if group.group_id not in constraints.shared_groups or taken & set(group.work_ids):
+            continue
+        if not all(wid in works for wid in group.work_ids):
+            continue
+        duration, starts = _trench_starts(scenario, constraints, [works[wid] for wid in group.work_ids])
+        if not starts:
+            built.notes.append(f"Shared trench {group.group_id} does not fit the allowed dates, "
+                               "so its works are planned one by one.")
+            continue
+        built.groups[group.group_id] = group
+        fits[group.group_id] = (duration, starts)
+        taken |= set(group.work_ids)
+    return fits
+
+
 def build(scenario: Scenario, constraints: SolveConstraints) -> Built:
     built = Built(model=cp_model.CpModel())
     m = built.model
     w = weights()
     segments_by_id = {s.segment_id: s for s in scenario.segments}
+    works = {wk.work_id: wk for wk in scenario.works}
     lits: list[cp_model.IntVar] = []
     coefs: list[int] = []
     unplaced_const = 0
     slots: dict[str, list[Slot]] = {}
     seg_intervals: dict[str, list[cp_model.IntervalVar]] = {}
+
+    for gid, (duration, starts) in _accept_groups(scenario, constraints, built).items():
+        group = built.groups[gid]
+        members = [works[wid] for wid in group.work_ids]
+        placed = m.new_bool_var(f"placed_{gid}")
+        built.placed[gid] = placed
+        segs = sorted({s for mem in members for s in mem.segment_ids})
+        ts = []
+        for start in starts:
+            t = m.new_bool_var(f"t_{gid}_{start}")
+            built.trenches[(gid, start)] = (t, duration)
+            ts.append(t)
+            lits.append(t)
+            coefs.append(_trench_cost(members, group, start, duration, segments_by_id, w))
+            iv = m.new_optional_fixed_size_interval_var(start, duration, t, f"i_{gid}_{start}")
+            for s in segs:
+                seg_intervals.setdefault(s, []).append(iv)
+            for mem in members:
+                slots.setdefault(mem.work_id, []).append((t, start, duration, True))
+        m.add(cp_model.LinearExpr.sum(ts) == placed)
+        for mem in members:
+            built.placed[mem.work_id] = placed
+            if mem.is_emergency:
+                m.add(placed == 1)
+        unplaced_const += UNPLACED_COST * len(members)
+        lits.append(placed)
+        coefs.append(-UNPLACED_COST * len(members))
+
+    in_trench = {wid for g in built.groups.values() for wid in g.work_ids}
     for work in scenario.works:
-        if work.done:
+        if work.done or work.work_id in in_trench:
             continue
         placed = m.new_bool_var(f"placed_{work.work_id}")
         built.placed[work.work_id] = placed

@@ -3,6 +3,7 @@ from datetime import date
 from contracts import rules
 from contracts.fakes import tiny_scenario
 from contracts.models import Mode, Plan, Scenario, SolveConstraints
+from solver.metrics import compute_metrics
 from solver.solve import solve
 
 BANNED = ("CP-SAT", "solver", "objective", "LLM")
@@ -69,3 +70,30 @@ def test_resurfacing_comes_after_every_utility_cut():
     for wid in ("W-001", "T-001", "G-001"):
         if a[wid].mode == Mode.open_cut and set(works[wid].segment_ids) & set(works["R-001"].segment_ids):
             assert r.start_day > a[wid].end_day
+
+
+def test_shared_trench():
+    s = tiny_scenario()
+    plan = run(s, SolveConstraints(shared_groups=["G1"], use_risk=False))
+    a = by_id(plan)
+    w, t = a["W-001"], a["T-001"]
+    assert w.mode == t.mode == Mode.open_cut
+    assert w.shared_group == t.shared_group == "G1"
+    assert (w.start_day, w.end_day) == (t.start_day, t.end_day)
+    assert w.end_day - w.start_day + 1 == 5
+    assert rules.digs_per_segment(s, plan)["S-0001"] == 2
+    assert t.reason == "Shares one trench with Water W-001."
+    assert w.reason == "Shares one trench with Telecom T-001."
+    apart = run(s, SolveConstraints(shared_groups=["G1"], use_risk=False, use_groups=False))
+    assert compute_metrics(plan, s).cost_inr < compute_metrics(apart, s).cost_inr
+
+
+def test_groups_off_or_unknown_share_nothing():
+    for c in (SolveConstraints(shared_groups=["G1"], use_groups=False), SolveConstraints(shared_groups=["G9"])):
+        assert all(a.shared_group is None for a in run(tiny_scenario(), c).assignments)
+
+
+def test_a_trench_that_cannot_fit_is_planned_one_by_one():
+    plan = run(tiny_scenario(), SolveConstraints(shared_groups=["G1"], forbidden_days={"T-001": list(range(28))[::4]}))
+    assert all(a.shared_group is None for a in plan.assignments)
+    assert any("Shared trench G1" in n for n in plan.notes)

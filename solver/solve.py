@@ -91,6 +91,11 @@ def solve(scenario: Scenario, constraints: SolveConstraints, variant: PlanVarian
     for (work_id, mode, start), (x, duration) in built.choices.items():
         if solver.boolean_value(x):
             picked[work_id] = Assignment(work_id=work_id, start_day=start, end_day=start + duration - 1, mode=mode)
+    for (group_id, start), (t, duration) in built.trenches.items():
+        if solver.boolean_value(t):
+            for work_id in built.groups[group_id].work_ids:
+                picked[work_id] = Assignment(work_id=work_id, start_day=start, end_day=start + duration - 1,
+                                             mode=Mode.open_cut, shared_group=group_id)
 
     assignments: list[Assignment] = []
     unplanned: list[str] = []
