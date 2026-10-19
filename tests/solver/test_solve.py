@@ -2,7 +2,7 @@ from datetime import date
 
 from contracts import rules
 from contracts.fakes import tiny_scenario
-from contracts.models import Mode, Plan, Scenario, SolveConstraints
+from contracts.models import Mode, Plan, RiskKind, RiskWindow, Scenario, SolveConstraints
 from solver.metrics import compute_metrics
 from solver.solve import solve
 
@@ -97,3 +97,30 @@ def test_a_trench_that_cannot_fit_is_planned_one_by_one():
     plan = run(tiny_scenario(), SolveConstraints(shared_groups=["G1"], forbidden_days={"T-001": list(range(28))[::4]}))
     assert all(a.shared_group is None for a in plan.assignments)
     assert any("Shared trench G1" in n for n in plan.notes)
+
+
+def test_rain_moves_open_trenches_only_with_risk_on():
+    s = tiny_scenario()
+    off = run(s, SolveConstraints(min_start={"W-001": 8}, use_risk=False))
+    assert rules.rain_trench_hours(s, off) == 48.0
+    on = run(s, SolveConstraints(min_start={"W-001": 8}, use_risk=True))
+    assert rules.rain_trench_hours(s, on) == 0.0
+    assert by_id(on)["W-001"].reason == "Moved after the rain: the road is low-lying."
+
+
+def with_event() -> Scenario:
+    s = tiny_scenario()
+    s.risk_windows.append(RiskWindow(window_id="EV-1", kind=RiskKind.event, start_day=9, end_day=10,
+                                     segment_ids=["S-0003"], value=0, source="event", label="Market, 11–12 Nov"))
+    return s
+
+
+def test_event_keeps_its_road_free():
+    a = by_id(run(with_event(), SolveConstraints()))
+    for wid in ("G-001", "R-001"):
+        assert not set(range(a[wid].start_day, a[wid].end_day + 1)) & {9, 10}
+
+
+def test_event_is_ignored_with_risk_off():
+    c = SolveConstraints(use_risk=False)
+    assert run(with_event(), c).assignments == run(tiny_scenario(), c).assignments

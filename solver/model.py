@@ -7,7 +7,17 @@ from datetime import timedelta
 from ortools.sat.python import cp_model
 
 from contracts import costs
-from contracts.models import Dept, Mode, ParallelGroup, Scenario, Segment, SolveConstraints, Work, WorkModeOption
+from contracts.models import (
+    Dept,
+    Mode,
+    ParallelGroup,
+    RiskKind,
+    Scenario,
+    Segment,
+    SolveConstraints,
+    Work,
+    WorkModeOption,
+)
 
 UNPLACED_COST = 100000
 
@@ -45,27 +55,48 @@ def allowed(scenario: Scenario, constraints: SolveConstraints, work: Work, optio
         return False
     if work.is_emergency:
         return start == work.requested_start
+    if constraints.use_risk and any(start <= d <= end for d in _window_days(scenario, work, RiskKind.event)):
+        return False
     return not (option.mode == Mode.open_cut and protected_on(scenario, work, start))
 
 
-# The weights turn choices into costs only in the three functions below.
+def _window_days(scenario: Scenario, work: Work, kind: RiskKind) -> set[int]:
+    """Days inside any window of this kind on one of the work's roads."""
+    return {d for win in scenario.risk_windows if win.kind == kind and set(win.segment_ids) & set(work.segment_ids)
+            for d in range(win.start_day, win.end_day + 1)}
+
+
+# The weights turn choices into costs only in the four functions below.
 def _own_cost(work: Work, option: WorkModeOption, start: int, w: dict[str, float]) -> int:
     shift = start - work.requested_start
     return option.cost_inr // 1000 + round(2 * w["delay"]) * max(0, shift) + abs(shift)
 
 
-def _choice_cost(work: Work, option: WorkModeOption, start: int, segments_by_id: dict[str, Segment],
-                 w: dict[str, float]) -> int:
+def _open_trench_risk(scenario: Scenario, constraints: SolveConstraints, work: Work, start: int, duration: int,
+                      w: dict[str, float]) -> int:
+    """An open trench on the work's roads during heavy rain or poor air."""
+    if not constraints.use_risk:
+        return 0
+    days = set(range(start, start + duration))
+    rain = len(days & _window_days(scenario, work, RiskKind.rain))
+    air = len(days & _window_days(scenario, work, RiskKind.air))
+    return round(100 * w["rain"]) * rain + round(10 * w["dust"]) * air
+
+
+def _choice_cost(scenario: Scenario, constraints: SolveConstraints, work: Work, option: WorkModeOption, start: int,
+                 segments_by_id: dict[str, Segment], w: dict[str, float]) -> int:
     cost = _own_cost(work, option, start, w)
     cost += round(w["disruption"] * costs.lane_closure_hours(work, option.mode, option.duration_days, segments_by_id))
     if option.mode == Mode.open_cut:
         cost += round(100 * w["excavations"])
+        cost += _open_trench_risk(scenario, constraints, work, start, option.duration_days, w)
     return cost
 
 
-def _trench_cost(members: list[Work], group: ParallelGroup, start: int, duration: int,
-                 segments_by_id: dict[str, Segment], w: dict[str, float]) -> int:
-    cost = sum(_own_cost(m, costs.option_for(m, Mode.open_cut), start, w) for m in members)
+def _trench_cost(scenario: Scenario, constraints: SolveConstraints, members: list[Work], group: ParallelGroup,
+                 start: int, duration: int, segments_by_id: dict[str, Segment], w: dict[str, float]) -> int:
+    cost = sum(_own_cost(m, costs.option_for(m, Mode.open_cut), start, w)
+               + _open_trench_risk(scenario, constraints, m, start, duration, w) for m in members)
     hours = max(costs.lane_closure_hours(m, Mode.open_cut, duration, segments_by_id) for m in members)
     return cost + round(w["disruption"] * hours) + round(100 * w["excavations"]) - group.saving_inr // 1000
 
@@ -156,7 +187,7 @@ def build(scenario: Scenario, constraints: SolveConstraints) -> Built:
             built.trenches[(gid, start)] = (t, duration)
             ts.append(t)
             lits.append(t)
-            coefs.append(_trench_cost(members, group, start, duration, segments_by_id, w))
+            coefs.append(_trench_cost(scenario, constraints, members, group, start, duration, segments_by_id, w))
             iv = m.new_optional_fixed_size_interval_var(start, duration, t, f"i_{gid}_{start}")
             for s in segs:
                 seg_intervals.setdefault(s, []).append(iv)
@@ -188,7 +219,7 @@ def build(scenario: Scenario, constraints: SolveConstraints) -> Built:
                 slots.setdefault(work.work_id, []).append((x, start, option.duration_days, open_cut))
                 xs.append(x)
                 lits.append(x)
-                coefs.append(_choice_cost(work, option, start, segments_by_id, w))
+                coefs.append(_choice_cost(scenario, constraints, work, option, start, segments_by_id, w))
                 if open_cut:
                     iv = m.new_optional_fixed_size_interval_var(start, option.duration_days, x,
                                                                 f"i_{work.work_id}_{start}")
