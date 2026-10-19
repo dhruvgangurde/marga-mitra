@@ -437,3 +437,64 @@ export interface SegmentCollection {
   type: 'FeatureCollection';
   features: SegmentFeature[];
 }
+
+// ---------- request bodies (the same for the mock server and the real API) ----------
+export interface ForecastOverrideBody {
+  kind: RiskKind;
+  start_day: number;
+  end_day: number;
+  value: number;
+  label?: string;
+}
+
+export interface EventBody {
+  label: string;
+  start_day: number;
+  end_day: number;
+  segment_ids: string[];
+}
+
+export interface DecideBody {
+  decision: 'approve' | 'reject';
+  by: string;
+  reason?: string;
+}
+
+export interface EvidenceInput {
+  kind: 'before' | 'after' | 'citizen';
+  photo: Blob;
+  lat?: number;
+  lon?: number;
+  takenAt?: string;
+}
+
+export interface ConfirmBody {
+  work_id: string;
+  answer: 'yes' | 'notyet';
+  problems: string[];
+  lat?: number;
+  lon?: number;
+}
+
+export interface EmergencyInput {
+  category: 'water' | 'gas' | 'power' | 'cavein' | 'trench';
+  lat: number;
+  lon: number;
+  note?: string;
+  photo?: Blob;
+}
+
+export interface WhatIfBody {
+  work_id: string;
+  delay_days: number;
+}
+
+export interface CopilotBody {
+  message: string;
+  context?: Record<string, unknown>;
+}
+
+export interface LedgerOpts {
+  limit?: number;
+  beforeSeq?: number;
+}
