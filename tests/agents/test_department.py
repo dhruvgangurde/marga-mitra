@@ -33,6 +33,27 @@ def test_every_department_has_a_prompt(dept):
     assert "Choose only among the numbered options" in text
 
 
+def test_every_department_is_told_to_answer_at_once():
+    for dept in Dept:
+        assert "Answer at once" in system_prompt(dept)
+
+
+def test_water_only_fears_rain_when_the_notes_name_it():
+    text = system_prompt(Dept.water)
+    assert "When the notes mention heavy rain" in text
+    assert "finishing before the rain is the safer choice" in text
+
+
+def test_every_department_leaves_rain_events_and_protected_roads_to_the_notes():
+    for dept in Dept:
+        assert "matter only when the clash notes mention them" in system_prompt(dept)
+
+
+def test_every_department_is_told_to_write_no_digit():
+    for dept in Dept:
+        assert "Write no digit at all" in system_prompt(dept)
+
+
 class FakeLLM:
     provider = "fake"
 
