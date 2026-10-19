@@ -174,6 +174,7 @@ def build(scenario: Scenario, constraints: SolveConstraints) -> Built:
     unplaced_const = 0
     slots: dict[str, list[Slot]] = {}
     seg_intervals: dict[str, list[cp_model.IntervalVar]] = {}
+    seg_days: dict[tuple[str, int], list[cp_model.IntVar]] = {}
 
     for gid, (duration, starts) in _accept_groups(scenario, constraints, built).items():
         group = built.groups[gid]
@@ -191,6 +192,8 @@ def build(scenario: Scenario, constraints: SolveConstraints) -> Built:
             iv = m.new_optional_fixed_size_interval_var(start, duration, t, f"i_{gid}_{start}")
             for s in segs:
                 seg_intervals.setdefault(s, []).append(iv)
+                for d in range(start, start + duration):
+                    seg_days.setdefault((s, d), []).append(t)
             for mem in members:
                 slots.setdefault(mem.work_id, []).append((t, start, duration, True))
         m.add(cp_model.LinearExpr.sum(ts) == placed)
@@ -225,6 +228,8 @@ def build(scenario: Scenario, constraints: SolveConstraints) -> Built:
                                                                 f"i_{work.work_id}_{start}")
                     for s in work.segment_ids:
                         seg_intervals.setdefault(s, []).append(iv)
+                        for d in range(start, start + option.duration_days):
+                            seg_days.setdefault((s, d), []).append(x)
         m.add(cp_model.LinearExpr.sum(xs) == placed)
         if work.is_emergency:
             m.add(placed == 1)
@@ -235,6 +240,10 @@ def build(scenario: Scenario, constraints: SolveConstraints) -> Built:
     for intervals in seg_intervals.values():
         if len(intervals) > 1:
             m.add_no_overlap(intervals)
+    # the same rule per road and day: redundant, but it lets the search prove the best plan far sooner
+    for day_lits in seg_days.values():
+        if len(day_lits) > 1:
+            m.add_at_most_one(day_lits)
     _add_order(m, scenario, built, slots)
     m.minimize(cp_model.LinearExpr.weighted_sum(lits, coefs) + unplaced_const)
     return built
