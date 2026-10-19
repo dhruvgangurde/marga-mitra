@@ -1,11 +1,14 @@
 """Fix the dates and methods of every work, then explain each one in plain words."""
 from __future__ import annotations
 
+import argparse
 import time
 from datetime import UTC, datetime, timedelta
 
 from ortools.sat.python import cp_model
 
+from contracts import costs
+from contracts.fakes import tiny_scenario
 from contracts.models import (
     Assignment,
     Dept,
@@ -18,6 +21,8 @@ from contracts.models import (
     SolveConstraints,
     Work,
 )
+from solver.baselines import naive_plan
+from solver.metrics import compute_metrics
 from solver.model import build, protected_on
 
 
@@ -76,6 +81,52 @@ def reason_for(work: Work, a: Assignment, scenario: Scenario, constraints: Solve
     return f"Moved to avoid a clash on {work.road_name}."
 
 
+def _load(seed: int) -> Scenario:
+    """The real test case and its windows when Track 4's modules are merged, else the small test scenario."""
+    try:
+        from data.scenario import generate_scenario
+    except ModuleNotFoundError:
+        print("Using the small test scenario (data.scenario is not merged yet).")
+        scenario = tiny_scenario(seed)
+    else:
+        scenario = generate_scenario(seed)
+    try:
+        from risk.windows import compute_risk_windows
+    except ModuleNotFoundError:
+        return scenario
+    return scenario.model_copy(update={"risk_windows": compute_risk_windows(scenario, "fixture")})
+
+
+def _summary(plan: Plan, scenario: Scenario) -> list[str]:
+    last = scenario.horizon_days - 1
+    lines = [f"Test case {scenario.seed} · {day_text(scenario, 0)} to {day_text(scenario, last)} · {plan.plan_id}"]
+    for a in plan.assignments:
+        mode = "open cut" if a.mode == Mode.open_cut else "trenchless"
+        lines.append(f"{a.work_id}  {days_text(scenario, a.start_day, a.end_day)}  {mode}  {a.shared_group or '-'}  "
+                     f"{a.reason}")
+    lines += plan.notes
+    m = compute_metrics(plan, scenario)
+    lines.append(f"Digs per road {m.digs_per_road} · lane-closure hours {round(m.lane_closure_hours)} · "
+                 f"clashes {m.clashes} · trench-hours in rain {round(m.trench_hours_in_rain)} · "
+                 f"days late {m.days_late} · cost {costs.inr(m.cost_inr)}")
+    return lines
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Print a plan for one test case in plain words.")
+    parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--naive", action="store_true", help="print the old-way plan instead")
+    parser.add_argument("--share", action="append", default=[], metavar="GROUP_ID", help="an accepted shared trench")
+    parser.add_argument("--no-risk", action="store_true", help="ignore rain, air and event windows")
+    args = parser.parse_args(argv)
+    scenario = _load(args.seed)
+    if args.naive:
+        plan = naive_plan(scenario)
+    else:
+        plan = solve(scenario, SolveConstraints(shared_groups=args.share, use_risk=not args.no_risk))
+    print("\n".join(_summary(plan, scenario)))
+
+
 def solve(scenario: Scenario, constraints: SolveConstraints, variant: PlanVariant = PlanVariant.orchestrated) -> Plan:
     t0 = time.perf_counter()
     built = build(scenario, constraints)
@@ -115,3 +166,7 @@ def solve(scenario: Scenario, constraints: SolveConstraints, variant: PlanVarian
     return Plan(plan_id=f"P-{scenario.seed}-{variant.value}", seed=scenario.seed, variant=variant,
                 created_at=datetime.now(UTC), assignments=assignments, unplanned=unplanned, notes=built.notes + notes,
                 objective=solver.objective_value, solve_ms=int((time.perf_counter() - t0) * 1000))
+
+
+if __name__ == "__main__":
+    main()
