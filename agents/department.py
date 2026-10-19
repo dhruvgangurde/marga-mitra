@@ -30,6 +30,8 @@ PROMPTS = Path(__file__).resolve().parent / "prompts"
 DEPT_NAMES = {"water": "Water", "drainage": "Drainage", "gas": "Gas", "power": "Power", "telecom": "Telecom",
               "roads": "Roads"}
 MAX_REASON = 160
+# at 200 the answer was sometimes cut off mid-JSON, which counted as a bad answer and fell back
+MAX_ANSWER_TOKENS = 400
 
 
 class Pick(BaseModel):
@@ -98,7 +100,7 @@ class DepartmentAgent:
         choice, reason, used = -1, "", False
         if options:
             pick = await self.llm.structured(system_prompt(self.dept), _user_text(conflict, work_id, options, scenario, plan, proposed),
-                                             Pick, max_tokens=200)
+                                             Pick, max_tokens=MAX_ANSWER_TOKENS)
             if pick is not None and -1 <= pick.option < len(options):
                 choice, reason, used = pick.option, _clean_reason(pick.reason), True
             else:
