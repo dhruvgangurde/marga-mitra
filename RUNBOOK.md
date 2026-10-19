@@ -29,14 +29,14 @@ Team **ExploreeTinkerBell**, 3rd year, Sardar Patel Institute of Technology, Mum
 
 The one rule of the calendar: every feature is built, tested and merged to `main` by **Oct 23, 23:59 IST**. The hacking round at NITK (Oct 24, 10:00 to Oct 25, 22:00) is only for joining the parts, deploying, fixing and the demo.
 
-| Track            | Person         | Branch        | Folders you own                                                                              | Phase 1 · Oct 19–20                                                      | Phase 2 · Oct 20–21                                                                  | Phase 3 · Oct 21–23                                            |
-| ---------------- | -------------- | ------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| T1 · Backend    | Nidhi Dhyani   | `t1-nidhi`  | `backend/`, `scripts/`, `Dockerfile`, `docker-compose.prod.yml`, `Caddyfile`       | API, database, public record, rules check, live updates                    | photo checks, evidence, resident answers, approvals, protected roads                   | auditor, Why?, what-if, emergency flow, Docker image             |
-| T2 · Scheduler  | Dhruv Gangurde | `t2-dhruv`  | `solver/`, `evals/`                                                                      | CP-SAT scheduler, metrics, old-way plan, plan diff                         | 50 test cases, what each part adds, results file                                       | scheduler tuning for the demo story, results on the real modules |
-| T3 · Agents     | Tanuj Bhide    | `t3-tanuj`  | `agents/`                                                                                  | LLM client, department agents, clash finder, options tool, no-LLM fallback | negotiation rounds, workflow with the approval pause, re-plan                          | copilot (tool calls and screen actions), demo script             |
-| T4 · Data, risk | Saumya Singh   | `t4-saumya` | `data/`, `risk/`                                                                         | Surathkal roads, low-lying roads, shared-trench groups, test cases 1–50   | rain, air and event risk                                                               | live forecasts, demo data checks                                 |
-| FE-A · Web      | Saumya Singh   | `fe-saumya` | `web/src/app/`, `api/`, `mocks/`, `map/`, `screens/Landing/`, `screens/Command/` | Oct 19: data layer, mock demo data, app shell, landing page, map           | Oct 20 to Oct 21, 09:00: command centre panels, work drawer, rain re-plan, copilot bar | command centre on the real API and live events                   |
-| FE-B · Web      | Dhruv Gangurde | `fe-dhruv`  | `web/src/ui/`, `screens/Approvals/`, `Field/`, `Resident/`, `Record/`, `Impact/` | Oct 19: the 24 UI components, approvals, field crew screens                | Oct 20 to Oct 21, 09:00: resident screens, public record, impact report                | phone screens, record and impact on the real API                 |
+| Track | Person | Branch | Folders you own | Phase 1 · Oct 19–20 | Phase 2 · Oct 20–21 | Phase 3 · Oct 21–23 |
+| --- | --- | --- | --- | --- | --- | --- |
+| T1 · Backend | Nidhi Dhyani | `t1-nidhi` | `backend/`, `scripts/`, `Dockerfile`, `docker-compose.prod.yml`, `Caddyfile` | API, database, public record, rules check, live updates | photo checks, evidence, resident answers, approvals, protected roads | auditor, Why?, what-if, emergency flow, Docker image |
+| T2 · Scheduler | Dhruv Gangurde | `t2-dhruv` | `solver/`, `evals/` | CP-SAT scheduler, metrics, old-way plan, plan diff | 50 test cases, what each part adds, results file | scheduler tuning for the demo story, results on the real modules |
+| T3 · Agents | Tanuj Bhide | `t3-tanuj` | `agents/` | LLM client, department agents, clash finder, options tool, no-LLM fallback | negotiation rounds, workflow with the approval pause, re-plan | copilot (tool calls and screen actions), demo script |
+| T4 · Data, risk | Saumya Singh | `t4-saumya` | `data/`, `risk/` | Surathkal roads, low-lying roads, shared-trench groups, test cases 1–50 | rain, air and event risk | live forecasts, demo data checks |
+| FE-A · Web | Saumya Singh | `fe-saumya` | `web/src/app/`, `api/`, `mocks/`, `map/`, `screens/Landing/`, `screens/Command/` | Oct 19: data layer, mock demo data, app shell, landing page, map | Oct 20 to Oct 21, 09:00: command centre panels, work drawer, rain re-plan, copilot bar | command centre on the real API and live events |
+| FE-B · Web | Dhruv Gangurde | `fe-dhruv` | `web/src/ui/`, `screens/Approvals/`, `Field/`, `Resident/`, `Record/`, `Impact/` | Oct 19: the 24 UI components, approvals, field crew screens | Oct 20 to Oct 21, 09:00: resident screens, public record, impact report | phone screens, record and impact on the real API |
 
 Who does what outside the four tracks:
 
@@ -55,14 +55,14 @@ Daily rhythm, India time:
 
 Every laptop needs Windows 10/11 or macOS 13+, 8 GB RAM (16 GB is better: Docker, Node and Python run together) and 15 GB free disk.
 
-| Tool                           | Version                           | Used for                                                                      |
-| ------------------------------ | --------------------------------- | ----------------------------------------------------------------------------- |
-| Git                            | 2.45 or newer                     | version control (Git for Windows also gives Git Bash, which Claude Code uses) |
-| Python                         | 3.12.x exactly                    | backend, scheduler, agents. The pinned packages were tested on 3.12           |
-| Node.js                        | 22 LTS or 24 LTS (at least 22.12) | the web app. Vite 8 needs 22.12+                                              |
-| Docker Desktop                 | current                           | PostgreSQL 17 with PostGIS in a container                                     |
-| Claude Code and/or Antigravity | current                           | your coding agent                                                             |
-| VS Code                        | optional                          | editor                                                                        |
+| Tool | Version | Used for |
+| --- | --- | --- |
+| Git | 2.45 or newer | version control (Git for Windows also gives Git Bash, which Claude Code uses) |
+| Python | 3.12.x exactly | backend, scheduler, agents. The pinned packages were tested on 3.12 |
+| Node.js | 22 LTS or 24 LTS (at least 22.12) | the web app. Vite 8 needs 22.12+ |
+| Docker Desktop | current | PostgreSQL 17 with PostGIS in a container |
+| Claude Code and/or Antigravity | current | your coding agent |
+| VS Code | optional | editor |
 
 ### Accounts and keys
 
@@ -3101,10 +3101,10 @@ Then COMMIT POINT 7 of 7, then the Phase Report.
 
 By 09:00 on Oct 21, every screen in the screen specs runs in the browser on mock demo data, so the proposal PDF due that night shows the real app. No backend is needed: the app's data layer answers every endpoint from `web/src/mocks/` and plays the live negotiation. In Phase 3 the same screens switch to the real API with `VITE_USE_MOCKS=0`.
 
-| Part | Person         | Branch        | Builds                                                                                         | Prompts                                               |
-| ---- | -------------- | ------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| FE-A | Saumya Singh   | `fe-saumya` | data layer and mock demo data, app shell, landing page, map, command centre                    | part 1 on Oct 19, part 2 from Oct 20 to Oct 21, 09:00 |
-| FE-B | Dhruv Gangurde | `fe-dhruv`  | the 24 UI components, approvals, field crew and resident screens, public record, impact report | part 1 on Oct 19, part 2 from Oct 20 to Oct 21, 09:00 |
+| Part | Person | Branch | Builds | Prompts |
+| --- | --- | --- | --- | --- |
+| FE-A | Saumya Singh | `fe-saumya` | data layer and mock demo data, app shell, landing page, map, command centre | part 1 on Oct 19, part 2 from Oct 20 to Oct 21, 09:00 |
+| FE-B | Dhruv Gangurde | `fe-dhruv` | the 24 UI components, approvals, field crew and resident screens, public record, impact report | part 1 on Oct 19, part 2 from Oct 20 to Oct 21, 09:00 |
 
 **Second clone (each of you, once).** Your core track keeps its own folder. The frontend gets a second one, so two agents never touch the same files:
 
@@ -4061,22 +4061,22 @@ Then COMMIT POINT 7 of 7, then the Phase Report. Under "Demo notes" list every U
 
 Take all 14 from `npm run dev` in mock mode on one laptop, after both part 2 Phase Reports. In Chrome: F12, then Ctrl+Shift+M (device toolbar), set the size, then the ⋮ menu → **Capture screenshot**. For the long reading pages use **Capture full size screenshot**. Save the PNGs in the team drive, not in the repo. Wait one second after each page loads, so the count-ups finish.
 
-| #  | File                           | Route                                   | Size                 | Check before you capture                                                            |
-| -- | ------------------------------ | --------------------------------------- | -------------------- | ----------------------------------------------------------------------------------- |
-| 1  | `01-landing.png`             | `/`                                   | 1440 wide, full size | Headline with "once.", the three steps, the four numbers with sources, Who are you? |
-| 2  | `02-command-negotiation.png` | `/command?demo=negotiating`           | 1440×900            | The sixth message has landed with its lime ring; clashes on the map                 |
-| 3  | `03-command-rain.png`        | `/command?demo=rain&tab=risk`         | 1440×900            | Rain area on the map, toast "Plan updated", the three moved works                   |
-| 4  | `04-works-tab.png`           | `/command?demo=rain&tab=works`        | 1440×900            | Badges: Shared trench, Moved, Digging, Verified                                     |
-| 5  | `05-approvals-tab.png`       | `/command?demo=rain&tab=approvals`    | 1440×900            | Rules check steps, Reject and Approve plan                                          |
-| 6  | `06-work-drawer.png`         | `/command?demo=ready&work=W-104`      | 1440×900            | Why these dates? with three reasons and sources                                     |
-| 7  | `07-approvals-phone.png`     | `/approvals?demo=rain`                | 390×844             | Seven changes, the Money card, sticky buttons                                       |
-| 8  | `08-crew-photos.png`         | `/field/W-104`                        | 390×844             | Before photo with its place and time badges                                         |
-| 9  | `09-crew-verified.png`       | `/field/W-104/result?result=verified` | 390×844             | The seal has stamped; money released                                                |
-| 10 | `10-crew-held.png`           | `/field/T-230/result?result=held`     | 390×844             | Photo reused, money held                                                            |
-| 11 | `11-resident-report.png`     | `/report`                             | 390×844             | Burst water pipe picked, location shown                                             |
-| 12 | `12-resident-confirm.png`    | `/confirm/W-104`                      | 390×844             | Before and after photos, Yes and Not yet                                            |
-| 13 | `13-public-record.png`       | `/record?checked=1`                   | 1440 wide, full size | "Record checked" banner, latest entries, protected roads, auditor notes             |
-| 14 | `14-impact.png`              | `/impact`                             | 1440 wide, full size | Bars and the "what each part adds" table                                            |
+| # | File | Route | Size | Check before you capture |
+| --- | --- | --- | --- | --- |
+| 1 | `01-landing.png` | `/` | 1440 wide, full size | Headline with "once.", the three steps, the four numbers with sources, Who are you? |
+| 2 | `02-command-negotiation.png` | `/command?demo=negotiating` | 1440×900 | The sixth message has landed with its lime ring; clashes on the map |
+| 3 | `03-command-rain.png` | `/command?demo=rain&tab=risk` | 1440×900 | Rain area on the map, toast "Plan updated", the three moved works |
+| 4 | `04-works-tab.png` | `/command?demo=rain&tab=works` | 1440×900 | Badges: Shared trench, Moved, Digging, Verified |
+| 5 | `05-approvals-tab.png` | `/command?demo=rain&tab=approvals` | 1440×900 | Rules check steps, Reject and Approve plan |
+| 6 | `06-work-drawer.png` | `/command?demo=ready&work=W-104` | 1440×900 | Why these dates? with three reasons and sources |
+| 7 | `07-approvals-phone.png` | `/approvals?demo=rain` | 390×844 | Seven changes, the Money card, sticky buttons |
+| 8 | `08-crew-photos.png` | `/field/W-104` | 390×844 | Before photo with its place and time badges |
+| 9 | `09-crew-verified.png` | `/field/W-104/result?result=verified` | 390×844 | The seal has stamped; money released |
+| 10 | `10-crew-held.png` | `/field/T-230/result?result=held` | 390×844 | Photo reused, money held |
+| 11 | `11-resident-report.png` | `/report` | 390×844 | Burst water pipe picked, location shown |
+| 12 | `12-resident-confirm.png` | `/confirm/W-104` | 390×844 | Before and after photos, Yes and Not yet |
+| 13 | `13-public-record.png` | `/record?checked=1` | 1440 wide, full size | "Record checked" banner, latest entries, protected roads, auditor notes |
+| 14 | `14-impact.png` | `/impact` | 1440 wide, full size | Bars and the "what each part adds" table |
 
 For the PDF: use #2 as the hero, with #7 and #9 as phone insets beside it, then #3 and #13 or #14. Caption them "Working prototype on demo data": the numbers come from the mock data until Phase 3. A 20-second screen recording of `/command?demo=negotiating` is a good backup for the demo video.
 
@@ -6061,7 +6061,7 @@ STEP 7 · department prompt tuning
 - With the key in .env, run python -m agents.workflow --demo and read every message. Then, with the API running, ask the rain question of step 6 and read that run's messages at http://127.0.0.1:8000/negotiation.
 - Look for: a department choosing against its own needs (a water main past its latest day, a drain dug into the rain), a reason with a number or a technical word, answers that keep falling back. Change only agents/prompts/base.md and agents/prompts/<dept>.md, in plain words; each department file stays 3 to 6 lines.
 - For every rule you add, a test in tests/agents/test_department.py that system_prompt(dept) contains its key words.
-- Create tests/agents/test_prompts.py: base.md and the department prompts contain no digit; every Tool value appears in copilot.md.
+- Create tests/agents/test_prompts.py: the department prompts contain no digit, base.md none apart from its one "-1" (the answer for "none can work"); every Tool value appears in copilot.md.
 - Under Demo notes, list each change with the message that caused it.
 Check: pytest -q tests/agents · pytest -q · ruff check .
 Then COMMIT POINT 7 of 8.
@@ -6187,7 +6187,7 @@ Create tests/data/test_check.py (needs the snapshot, with the Phase 1 need_snaps
 - main([]) returns 0 and prints no FAIL line.
 - On a copy of demo_scenario() where the first Munchur segment is low-lying (model_copy), road_lines has a FAIL line that names that segment id.
 - On a copy where P-120 has only its open-cut mode, the protected line is FAIL and names P-120.
-Add to tests/data/conftest.py an autouse fixture that replaces urllib.request.urlopen with a function raising AssertionError("tests must not use the network").
+Add to tests/data/conftest.py an autouse fixture that replaces httpx.Client.send (data/ fetches with httpx) with a function raising AssertionError("tests must not use the network").
 Check: python -m data.check
 Check: pytest -q && ruff check .
 Then COMMIT POINT 4 of 7.
@@ -6237,7 +6237,7 @@ STEP 7 · The web export, the notes and the whole-track check
   - "Checks": what python -m data.check proves, and that a FAIL stops the demo story.
   - "weather_cache.json": the last live forecast, kept 3 hours, never committed. Delete it to force a fresh fetch.
 - Whole-track check:
-  - urlopen and Request appear only in risk/weather.py's _get_json and the data --fetch functions.
+  - Network calls (httpx) appear only in risk/weather.py's _get_json and the data --fetch functions.
   - Two runs of python -m data.check print the same text.
   - python -m data.check takes under 30 s, and python -m risk.windows in fixture mode under 2 s.
   - Fix what these checks find. Add no new features.
@@ -6844,17 +6844,17 @@ docker compose -f docker-compose.prod.yml exec api python -m scripts.seed_demo
 
 Run the whole demo script once on the deployed addresses, from a laptop and from a phone.
 
-| Check                               | Expected                                                                                       |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `/health`                         | ok and db true                                                                                 |
-| Landing → Open command centre      | map of Surathkal, old-way numbers, live dot                                                    |
-| Orchestrate                         | messages arrive one by one; plan waits for approval                                            |
-| Approve on a phone (`/approvals`) | the command centre updates within 2 seconds                                                    |
-| Simulate rain                       | three works move; trench-hours in rain 0; approval again                                       |
-| Crew photo for T-230                | money held, photo reused                                                                       |
-| W-104 repair + resident Yes         | verified, money released                                                                       |
-| Check the record                    | passes; after `python -m scripts.tamper_demo` it fails at that entry; `--restore` fixes it |
-| Impact page                         | the 50-case results                                                                            |
+| Check | Expected |
+| --- | --- |
+| `/health` | ok and db true |
+| Landing → Open command centre | map of Surathkal, old-way numbers, live dot |
+| Orchestrate | messages arrive one by one; plan waits for approval |
+| Approve on a phone (`/approvals`) | the command centre updates within 2 seconds |
+| Simulate rain | three works move; trench-hours in rain 0; approval again |
+| Crew photo for T-230 | money held, photo reused |
+| W-104 repair + resident Yes | verified, money released |
+| Check the record | passes; after `python -m scripts.tamper_demo` it fails at that entry; `--restore` fixes it |
+| Impact page | the 50-case results |
 
 No-go on any line → fix it with the fix prompt tonight, or switch that part of the demo to the local laptop.
 
@@ -6894,20 +6894,20 @@ Two artifacts fix how every screen looks. The prompts already carry every value 
 - **Design system** (tokens, the 24 components, Words to use, layout, map, motion): https://claude.ai/artifact/LzVXA5Q35cCSZaGdw8by5a
 - **Screen specs** (12 artboards on one canvas): https://claude.ai/artifact/PYvk5u8A6zwxgU3NSEmYBB
 
-| Artboard                                  | Route                     | Built by | Data it reads                                                 |
-| ----------------------------------------- | ------------------------- | -------- | ------------------------------------------------------------- |
-| 01 Landing and role picker                | `/`                     | FE-A     | none (fixed words)                                            |
-| 02 Command centre · live negotiation     | `/command`              | FE-A     | works, plans, metrics, negotiation, risk windows, live events |
-| 03 Command centre · rain re-plan         | `/command?demo=rain`    | FE-A     | forecast override, the re-plan run, plan diff                 |
-| 04 Side panel · Works and Approvals tabs | `/command`, side panel  | FE-A     | works, approvals, plan diff                                   |
-| 05 Work drawer · Why?                    | `/command?work=W-104`   | FE-A     | Why?, What if, the public record                              |
-| 06 Approvals (phone)                      | `/approvals`            | FE-B     | approvals, plan diff, metrics                                 |
-| 07 Field crew · photos                   | `/field/:workId`        | FE-B     | photo upload                                                  |
-| 08 Field crew · result                   | `/field/:workId/result` | FE-B     | photo check result                                            |
-| 09 Resident · emergency report           | `/report`               | FE-B     | emergency report                                              |
-| 10 Resident · road restored?             | `/confirm/:workId`      | FE-B     | photos, resident answer                                       |
-| 11 Public record                          | `/record`               | FE-B     | record, record check, protected roads, auditor notes          |
-| 12 Impact report                          | `/impact`               | FE-B     | results of the 50 test cases                                  |
+| Artboard | Route | Built by | Data it reads |
+| --- | --- | --- | --- |
+| 01 Landing and role picker | `/` | FE-A | none (fixed words) |
+| 02 Command centre · live negotiation | `/command` | FE-A | works, plans, metrics, negotiation, risk windows, live events |
+| 03 Command centre · rain re-plan | `/command?demo=rain` | FE-A | forecast override, the re-plan run, plan diff |
+| 04 Side panel · Works and Approvals tabs | `/command`, side panel | FE-A | works, approvals, plan diff |
+| 05 Work drawer · Why? | `/command?work=W-104` | FE-A | Why?, What if, the public record |
+| 06 Approvals (phone) | `/approvals` | FE-B | approvals, plan diff, metrics |
+| 07 Field crew · photos | `/field/:workId` | FE-B | photo upload |
+| 08 Field crew · result | `/field/:workId/result` | FE-B | photo check result |
+| 09 Resident · emergency report | `/report` | FE-B | emergency report |
+| 10 Resident · road restored? | `/confirm/:workId` | FE-B | photos, resident answer |
+| 11 Public record | `/record` | FE-B | record, record check, protected roads, auditor notes |
+| 12 Impact report | `/impact` | FE-B | results of the 50 test cases |
 
 **Words on screen.** The design system's Words to use page beats any other wording. These words never appear on screen: agentic, LLM, model, prompt, token, API, JSON, CP-SAT, LangGraph, pHash, EXIF, hash, ledger, ablation, seed.
 
