@@ -280,6 +280,20 @@ async def test_departments_that_refuse_leave_it_to_the_scheduler(s, p, monkeypat
     assert (out.rounds, out.used_llm) == (1, True)
 
 
+async def test_a_refusal_strands_the_trench_partner(s, p, monkeypatch):
+    llm = ScriptLLM({"Water": [-1], "Telecom": [2]})  # Water refuses; Telecom picks its shared trench
+    use(monkeypatch, llm)
+    out = await negotiate(s, p, detect_conflicts(s, p), "RUN-1", Recorder())
+    assert out.escalated == ["T-001", "W-001"]
+    assert out.constraints.shared_groups == []
+    assert llm.calls["Telecom"] == 1
+    assert out.rounds == 1
+    last = out.messages[-1]
+    assert last.type.value == "ESCALATE"
+    assert last.recipients == ["Scheduler"]
+    assert last.body == "The scheduler decides the remaining dates for W-001 and T-001."
+
+
 async def test_two_keepers_on_a_clash_make_the_lower_priority_one_move(s, p, monkeypatch):
     works = [w.model_copy(update={"priority": 5}) if w.work_id == "T-001" else w for w in s.works]
     s5 = s.model_copy(update={"works": works, "parallel_groups": []})

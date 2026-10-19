@@ -262,6 +262,21 @@ def _keep_proposals(talk: _Talk, cluster: list[Conflict], works: list[Work], opt
     return out
 
 
+def _release_stranded(talk: _Talk, works: list[Work], options: dict[str, list[NegotiationOption]],
+                      choice: dict[str, int | None], gone: set[str]) -> None:
+    """A trench cannot form once one of its members said ESCALATE: the members that chose it go to the scheduler too."""
+    ids = {w.work_id for w in works}
+    for group in talk.scenario.parallel_groups:
+        members = [m for m in group.work_ids if m in ids]
+        if not any(m in gone and choice[m] is None for m in members):
+            continue
+        for m in members:
+            picked = _picked(options, choice, m)
+            if m not in gone and picked is not None and picked.shared_group == group.group_id:
+                choice[m] = None
+                gone.add(m)
+
+
 def _disagreements(talk: _Talk, cluster: list[Conflict], works: list[Work], options: dict[str, list[NegotiationOption]],
                    choice: dict[str, int | None]) -> dict[str, int]:
     """Works in a contradiction, in scenario order, each with the option the coordinator proposes."""
@@ -291,6 +306,7 @@ async def _negotiate_cluster(talk: _Talk, cluster: list[Conflict]) -> None:
     proposals = {w.work_id: fallback.choose(options[w.work_id]) for w in works}
     choice = await _ask_round(talk, cluster, works, options, proposals, 1)
     gone = {w for w, i in choice.items() if i is None}  # a work that said ESCALATE is never asked again
+    _release_stranded(talk, works, options, choice, gone)
     r = 1
     while (open_ := _disagreements(talk, cluster, works, options, choice)) and r < _max_rounds():
         r += 1
@@ -298,6 +314,7 @@ async def _negotiate_cluster(talk: _Talk, cluster: list[Conflict]) -> None:
         await talk.say(_round_notice(talk, r, asked, options, open_))
         choice.update(await _ask_round(talk, cluster, asked, options, open_, r))
         gone |= {w.work_id for w in asked if choice[w.work_id] is None}
+        _release_stranded(talk, works, options, choice, gone)
     talk.rounds = max(talk.rounds, r)
     gone |= set(_disagreements(talk, cluster, works, options, choice))
     _constraints(talk, works, options, choice, gone)
