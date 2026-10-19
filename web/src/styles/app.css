@@ -1,5 +1,38 @@
-/* MargaMitra app shell. Layout only; colours and sizes come from tokens. */
-.mm-app-loading { margin: 0; padding: var(--space-16) var(--space-6); text-align: center; color: var(--ink-3); }
-.mm-app-notfound { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-16) var(--space-10); }
-.mm-app-rolemenu { position: fixed; top: 64px; right: 16px; z-index: var(--z-modal); width: 260px; }
-.mm-app-rolemenu__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+
+/* Landing */
+.mm-app-land { max-width: 1200px; margin: 0 auto; padding: 0 var(--space-10); display: flex; flex-direction: column; gap: 112px; }
+.mm-app-hero { display: flex; flex-direction: column; gap: var(--space-6); padding: 88px 0 112px; align-items: flex-start; }
+.mm-app-hero h1 { margin: 0; }
+.mm-app-hero__word { display: inline-block; }
+.mm-app-hero__script { font-family: var(--font-script); font-size: 92px; line-height: 72px; text-transform: none; color: var(--maroon); }
+.mm-app-hero__row { display: flex; flex-wrap: wrap; gap: var(--space-10); align-items: center; width: 100%; }
+.mm-app-hero__left { flex: 1 1 560px; display: flex; flex-direction: column; gap: var(--space-6); }
+.mm-app-hero__left p { max-width: 640px; margin: 0; color: var(--ink-2); }
+.mm-app-hero__buttons { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.mm-app-h2 { margin: 0 0 8px; color: var(--maroon); }
+.mm-app-lede { margin: 0 0 var(--space-10); }
+.mm-app-folders { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
+.mm-app-folders > * { flex: 1 1 320px; }
+.mm-app-folders > :nth-child(2) { margin-top: 24px; }
+.mm-app-folders > :nth-child(3) { margin-top: 48px; }
+.mm-app-folder-text { margin: 0 0 var(--space-4); color: var(--ink-2); }
+.mm-app-folder-text--dark { color: var(--cream); }
+.mm-app-folder-title { margin: 0 0 var(--space-2); }
+.mm-app-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.mm-app-stats { display: flex; flex-wrap: wrap; }
+.mm-app-stat { flex: 1 1 240px; box-sizing: border-box; padding: var(--space-6); border-left: 1px solid var(--line); }
+.mm-app-stat:first-child { border-left: 0; }
+.mm-app-stat__num { margin: 0 0 var(--space-2); color: var(--maroon); }
+.mm-app-stat__line { margin: 0; color: var(--ink-2); }
+.mm-app-sources { margin: var(--space-3) 0 0; color: var(--ink-3); }
+.mm-app-who { margin-bottom: -16px; }
+.mm-app-who h2 { margin: var(--space-4) 0 var(--space-8); color: var(--maroon); }
+.mm-app-roles { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.mm-app-role { flex: 1 1 180px; display: flex; flex-direction: column; gap: var(--space-3); box-sizing: border-box; padding: var(--space-5); color: inherit; text-decoration: none; background: var(--paper); border: 1px solid var(--ink); border-radius: var(--radius-xl); }
+.mm-app-role:hover { box-shadow: var(--shadow-sticker); }
+.mm-app-role__icon { display: grid; place-items: center; width: 44px; height: 44px; box-sizing: border-box; background: var(--sand); border: 1.5px solid var(--ink); border-radius: 50%; }
+.mm-app-role__line { color: var(--ink-2); }
+.mm-app-foot { margin-top: 112px; border-top: 1px solid var(--line); background: var(--cream); }
+.mm-app-foot__in { max-width: 1200px; margin: 0 auto; box-sizing: border-box; padding: var(--space-6) var(--space-10); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.mm-app-foot__brand { font-family: var(--font-display); font-size: 20px; line-height: 24px; }
+.mm-app-foot__text { margin: 0; color: var(--ink-3); max-width: 720px; }
