@@ -1,5 +1,6 @@
 from datetime import date
 
+from contracts import rules
 from contracts.fakes import tiny_scenario
 from contracts.models import Mode, Plan, Scenario, SolveConstraints
 from solver.solve import solve
@@ -51,3 +52,20 @@ def test_same_input_same_plan():
     assert p1.assignments == p2.assignments
     assert p1.unplanned == p2.unplanned
     assert p1.objective == p2.objective
+
+
+def test_no_clashes_without_risk():
+    s = tiny_scenario()
+    plan = run(s, SolveConstraints(use_risk=False))
+    assert rules.clash_count(s, plan) == 0
+    assert rules.find_clashes(s, plan, include_risk=False) == []
+
+
+def test_resurfacing_comes_after_every_utility_cut():
+    s = tiny_scenario()
+    a = by_id(run(s, SolveConstraints(use_risk=False)))
+    r = a["R-001"]
+    works = {w.work_id: w for w in s.works}
+    for wid in ("W-001", "T-001", "G-001"):
+        if a[wid].mode == Mode.open_cut and set(works[wid].segment_ids) & set(works["R-001"].segment_ids):
+            assert r.start_day > a[wid].end_day
