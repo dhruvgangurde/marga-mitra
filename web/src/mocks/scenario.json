@@ -1,0 +1,244 @@
+{
+  "seed": 1,
+  "city": "Surathkal",
+  "start_date": "2026-11-02",
+  "horizon_days": 28,
+  "segments": [
+    {
+      "segment_id": "S-0001",
+      "osm_way_id": 1001,
+      "name": "Test Road",
+      "road_class": "secondary",
+      "length_m": 200.0,
+      "lanes": 2,
+      "traffic_weight": 3.0,
+      "elevation_m": 30.0,
+      "low_lying": false,
+      "protected_until": null,
+      "neighbors": [
+        "S-0002"
+      ],
+      "coords": [
+        [
+          74.79,
+          13.01
+        ],
+        [
+          74.792,
+          13.01
+        ]
+      ]
+    },
+    {
+      "segment_id": "S-0002",
+      "osm_way_id": 1002,
+      "name": "Test Road",
+      "road_class": "secondary",
+      "length_m": 200.0,
+      "lanes": 2,
+      "traffic_weight": 3.0,
+      "elevation_m": 8.0,
+      "low_lying": true,
+      "protected_until": null,
+      "neighbors": [
+        "S-0001",
+        "S-0003"
+      ],
+      "coords": [
+        [
+          74.792,
+          13.01
+        ],
+        [
+          74.794,
+          13.01
+        ]
+      ]
+    },
+    {
+      "segment_id": "S-0003",
+      "osm_way_id": 1003,
+      "name": "Test Road",
+      "road_class": "secondary",
+      "length_m": 200.0,
+      "lanes": 2,
+      "traffic_weight": 3.0,
+      "elevation_m": 30.0,
+      "low_lying": false,
+      "protected_until": null,
+      "neighbors": [
+        "S-0002"
+      ],
+      "coords": [
+        [
+          74.794,
+          13.01
+        ],
+        [
+          74.79599999999999,
+          13.01
+        ]
+      ]
+    }
+  ],
+  "works": [
+    {
+      "work_id": "W-001",
+      "dept": "water",
+      "title": "Water main",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0001",
+        "S-0002"
+      ],
+      "length_m": 400.0,
+      "requested_start": 8,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 5,
+          "cost_inr": 1952000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        }
+      ],
+      "priority": 3,
+      "depends_on": [],
+      "deposit_inr": 200000,
+      "is_emergency": false,
+      "done": false
+    },
+    {
+      "work_id": "T-001",
+      "dept": "telecom",
+      "title": "Fibre duct",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0001",
+        "S-0002"
+      ],
+      "length_m": 400.0,
+      "requested_start": 10,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 3,
+          "cost_inr": 1032000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        },
+        {
+          "mode": "trenchless",
+          "duration_days": 4,
+          "cost_inr": 1096800,
+          "lanes_closed": 0,
+          "dust": 0.0
+        }
+      ],
+      "priority": 3,
+      "depends_on": [],
+      "deposit_inr": 100000,
+      "is_emergency": false,
+      "done": false
+    },
+    {
+      "work_id": "G-001",
+      "dept": "gas",
+      "title": "Gas line",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0003"
+      ],
+      "length_m": 200.0,
+      "requested_start": 9,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 4,
+          "cost_inr": 816000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        },
+        {
+          "mode": "trenchless",
+          "duration_days": 5,
+          "cost_inr": 1089600,
+          "lanes_closed": 0,
+          "dust": 0.0
+        }
+      ],
+      "priority": 3,
+      "depends_on": [],
+      "deposit_inr": 80000,
+      "is_emergency": false,
+      "done": false
+    },
+    {
+      "work_id": "R-001",
+      "dept": "roads",
+      "title": "Resurfacing",
+      "road_name": "Test Road",
+      "segment_ids": [
+        "S-0001",
+        "S-0002",
+        "S-0003"
+      ],
+      "length_m": 600.0,
+      "requested_start": 9,
+      "earliest_start": 0,
+      "latest_end": 27,
+      "modes": [
+        {
+          "mode": "open_cut",
+          "duration_days": 3,
+          "cost_inr": 1188000,
+          "lanes_closed": 1,
+          "dust": 0.6
+        }
+      ],
+      "priority": 3,
+      "depends_on": [
+        "W-001",
+        "T-001",
+        "G-001"
+      ],
+      "deposit_inr": 120000,
+      "is_emergency": false,
+      "done": false
+    }
+  ],
+  "risk_windows": [
+    {
+      "window_id": "R1",
+      "kind": "rain",
+      "start_day": 12,
+      "end_day": 13,
+      "segment_ids": [
+        "S-0002"
+      ],
+      "value": 70.0,
+      "source": "fixture",
+      "label": "Heavy rain, 14–15 Nov"
+    }
+  ],
+  "parallel_groups": [
+    {
+      "group_id": "G1",
+      "work_ids": [
+        "W-001",
+        "T-001"
+      ],
+      "segment_ids": [
+        "S-0001",
+        "S-0002"
+      ],
+      "saving_inr": 672000
+    }
+  ]
+}
