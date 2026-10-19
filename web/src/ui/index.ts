@@ -46,6 +46,8 @@ export { CopilotBar } from './CopilotBar';
 export type { CopilotBarProps } from './CopilotBar';
 export { TopBar } from './TopBar';
 export type { TopBarProps } from './TopBar';
+export { PhoneScreen } from './PhoneScreen';
+export type { PhoneScreenProps } from './PhoneScreen';
 export { DEPTS } from './depts';
 export type { Dept } from './depts';
 export type { IconName } from './icons';
