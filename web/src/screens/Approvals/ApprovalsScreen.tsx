@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useApprovals, useDecideApproval, useOldWayPlan, usePlanDiff, usePlanMetrics } from '../../api/hooks';
-import { compareLabel, dayRange, inr, metricDelta, shortTime, signedInr } from '../../api/format';
-import type { Approval, Tier } from '../../api/types';
+import { USE_MOCKS } from '../../api/client';
+import {
+  useApprovals, useDecideApproval, useExplain, useOldWayPlan, usePlan, usePlanDiff, usePlanMetrics,
+} from '../../api/hooks';
+import { actorLabel, compareLabel, dayRange, inr, metricDelta, shortTime, signedInr } from '../../api/format';
+import type { Approval, RuleCheck, Tier } from '../../api/types';
 import { useRole } from '../../app/role';
 import {
-  Banner, Button, Card, DiffRow, EmptyState, FocusTarget, LoadError, MetricTile, PhoneScreen, Skeleton, StatusBadge, StepList, TextField,
+  Banner, Button, Card, DiffRow, EmptyState, FocusTarget, isMissing, LoadError, MetricTile, PhoneScreen, problemText, Skeleton,
+  StatusBadge, StepList, TextField,
 } from '../../ui';
+import type { StepListProps } from '../../ui';
 
 type Decision = 'approve' | 'reject';
+type Step = StepListProps['steps'][number];
 
 const TIERS: Record<Exclude<Tier, 'auto'>, { who: string; label: string; detail: string }> = {
   ward_engineer: { who: 'the ward engineer', label: 'Ward engineer', detail: 'Plans that change 5 or more works' },
@@ -18,33 +24,67 @@ const TIERS: Record<Exclude<Tier, 'auto'>, { who: string; label: string; detail:
 
 const COLUMN = { display: 'flex', flexDirection: 'column', gap: 8 } as const;
 const ROW = { display: 'flex', justifyContent: 'space-between', gap: 8 } as const;
+const FIXED_RULES: Step = { text: 'Rules check passed', detail: 'No protected road is dug; every deposit is held', status: 'done' };
+const LOADING_RULES: Step = { text: 'Rules check', detail: 'Loading the results', status: 'waiting' };
+
+// The backend's approval summary counts the same way: "1 work changes".
+const worksText = (n: number) => (n === 1 ? '1 work' : `${n} works`);
 
 const newest = (list: Approval[] = []): Approval | undefined =>
   [...list].sort((a, b) => b.requested_at.localeCompare(a.requested_at))[0];
 
+function ruleSteps(rules: RuleCheck[]): Step[] {
+  const flagged = rules.filter((r) => r.severity !== 'ok');
+  if (flagged.length === 0) {
+    return [{ text: 'Rules check passed', detail: rules.map((r) => r.detail).join('; ') || undefined, status: 'done' }];
+  }
+  return flagged.map((r) => (r.severity === 'fail'
+    ? { text: 'Rules check failed', detail: r.detail, status: 'needs' }
+    : { text: r.detail, status: 'needs' }));
+}
+
 export default function ApprovalsScreen() {
   const { role } = useRole();
-  const approvals = useApprovals('pending');
+  const pending = useApprovals('pending');
+  const all = useApprovals();
   const decide = useDecideApproval();
   // The decided approval leaves the pending list, so it is kept here to go on showing it.
   const [decided, setDecided] = useState<{ approval: Approval; decision: Decision } | null>(null);
+  // The approval on screen stays on screen when another screen decides it.
+  const [shownId, setShownId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
 
-  const approval = decided?.approval ?? newest(approvals.data);
-  const diff = usePlanDiff(approval?.plan_id, 'naive');
+  const latestCopy = all.data?.find((a) => a.approval_id === shownId);
+  const approval = decided?.approval ?? latestCopy ?? pending.data?.find((a) => a.approval_id === shownId) ?? newest(pending.data);
+  // A decision from this screen can reach the list before its own reply does; that is not "elsewhere".
+  const elsewhere = !decided && !decide.isPending && !decide.isSuccess && latestCopy && latestCopy.status !== 'pending' ? latestCopy : null;
+  const waitingNext = decided || elsewhere ? newest(pending.data?.filter((a) => a.approval_id !== approval?.approval_id)) : undefined;
+
+  useEffect(() => {
+    if (!shownId && approval) setShownId(approval.approval_id);
+  }, [shownId, approval]);
+
+  const plan = usePlan(USE_MOCKS ? undefined : approval?.plan_id);
+  // shortcut: mock mode keeps the old-way diff that artboard 06 draws; the real screen lists what this approval changes
+  const against = USE_MOCKS ? 'naive' : (plan.data?.base_plan_id ?? 'naive');
+  const diff = usePlanDiff(USE_MOCKS || plan.data ? approval?.plan_id : undefined, against);
   const metrics = usePlanMetrics(approval?.plan_id);
   const oldWay = useOldWayPlan();
   const oldMetrics = usePlanMetrics(oldWay.data?.plan_id);
+  const explanation = useExplain(approval?.plan_id);
 
-  const loading = approvals.isLoading || diff.isLoading || metrics.isLoading || oldWay.isLoading || oldMetrics.isLoading;
-  const badge = decided?.decision === 'approve'
+  const loading = pending.isLoading || plan.isLoading || diff.isLoading || metrics.isLoading || oldWay.isLoading || oldMetrics.isLoading;
+  const outcome = decided?.decision === 'approve' || elsewhere?.status === 'approved'
+    ? 'approved'
+    : decided?.decision === 'reject' || elsewhere?.status === 'rejected' ? 'rejected' : null;
+  const badge = outcome === 'approved'
     ? <StatusBadge status="approved">Approved</StatusBadge>
-    : decided?.decision === 'reject'
+    : outcome === 'rejected'
       ? <StatusBadge status="fail">Rejected</StatusBadge>
       : <StatusBadge status="pending">Waiting</StatusBadge>;
 
-  const queries = [approvals, diff, metrics, oldWay, oldMetrics];
+  const queries = [pending, all, plan, diff, metrics, oldWay, oldMetrics, explanation].filter((q) => !isMissing(q.error));
   if (loading) {
     return (
       <PhoneScreen title="Approval" backTo="/" badge={badge} busy>
@@ -56,7 +96,7 @@ export default function ApprovalsScreen() {
   if (!approval) {
     return (
       <PhoneScreen title="Approval" backTo="/" badge={badge}>
-        {approvals.isError
+        {pending.isError
           ? <LoadError queries={queries} />
           : <EmptyState icon="handshake" text="Nothing is waiting for you." action={<Button as="a" href="/command">Open command centre</Button>} />}
       </PhoneScreen>
@@ -70,6 +110,10 @@ export default function ApprovalsScreen() {
   const needs = tier ?? TIERS.ward_engineer;
   const now = metrics.data;
   const old = oldMetrics.data;
+  const rules = explanation.data?.rules;
+  const rulesFailed = rules?.some((r) => r.severity === 'fail') ?? false;
+  const rulesRows = rules ? ruleSteps(rules) : [USE_MOCKS ? FIXED_RULES : LOADING_RULES];
+  const problem = decide.isError && !elsewhere ? problemText(decide.error) : null;
 
   async function send(decision: Decision) {
     if (!approval) return;
@@ -77,28 +121,45 @@ export default function ApprovalsScreen() {
     try {
       await decide.mutateAsync({ approvalId: approval.approval_id, decision, by, reason: decision === 'reject' ? reason.trim() : undefined });
       setDecided({ approval, decision });
-    } catch {
-      // The danger banner below shows the failure; the buttons stay so the user can try again.
+    } catch (error) {
+      // The danger banner shows the failure; the reason stays so the user can try again.
+      if (problemText(error).title === 'Already decided') {
+        void pending.refetch();
+        void all.refetch();
+      }
     }
   }
 
+  function showNext(next: Approval) {
+    setDecided(null);
+    setRejecting(false);
+    setReason('');
+    decide.reset();
+    setShownId(next.approval_id);
+  }
+
   const reasonReady = reason.trim().length >= 3;
+  const sending = decide.isPending;
   let footer: ReactNode;
   if (decided) {
     footer = <Button as="a" href="/command" block>Open command centre</Button>;
+  } else if (elsewhere) {
+    footer = <Button variant="secondary" block as="a" href="/command">Open command centre</Button>;
   } else if (rejecting) {
     footer = (
       <>
         {reasonReady ? null : <p className="small" style={{ margin: 0, color: 'var(--ink-3)' }}>Write a reason first.</p>}
-        <Button variant="danger" block disabled={!reasonReady || decide.isPending} onClick={() => send('reject')}>Reject plan</Button>
-        <Button block onClick={() => { setRejecting(false); setReason(''); }}>Cancel</Button>
+        <Button variant="danger" block disabled={!reasonReady || sending} onClick={() => void send('reject')}>
+          {sending ? 'Sending…' : 'Reject plan'}
+        </Button>
+        <Button block disabled={sending} onClick={() => { setRejecting(false); setReason(''); }}>Cancel</Button>
       </>
     );
   } else {
     footer = (
       <>
-        <Button variant="danger" icon="x" block disabled={decide.isPending} onClick={() => setRejecting(true)}>Reject</Button>
-        <Button variant="primary" block disabled={decide.isPending} onClick={() => send('approve')}>Approve plan</Button>
+        <Button variant="danger" icon="x" block disabled={sending} onClick={() => setRejecting(true)}>Reject</Button>
+        <Button variant="primary" block disabled={sending} onClick={() => void send('approve')}>{sending ? 'Sending…' : 'Approve plan'}</Button>
       </>
     );
   }
@@ -106,6 +167,7 @@ export default function ApprovalsScreen() {
   return (
     <PhoneScreen title="Approval" backTo="/" badge={badge} footer={footer}>
       <LoadError queries={queries} />
+      {rulesFailed ? <Banner tone="warn" title="The rules check failed">Read why below before you decide.</Banner> : null}
       {/* Always present so the decision is announced; display contents keeps the empty region out of the layout. */}
       <div aria-live="polite" style={{ display: 'contents' }}>
         {decided ? (
@@ -114,8 +176,15 @@ export default function ApprovalsScreen() {
               ? <Banner tone="ok" title="Plan approved">It is in the public record. Department heads are told.</Banner>
               : <Banner tone="info" title="Plan rejected">The scheduler will make a new plan with your reason.</Banner>}
           </FocusTarget>
-        ) : decide.isError ? (
-          <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner>
+        ) : elsewhere ? (
+          <Banner tone="info" title="Decided on another screen">
+            {`${actorLabel(elsewhere.decided_by ?? 'system')} ${elsewhere.status} this plan at ${shortTime(elsewhere.decided_at ?? elsewhere.requested_at)}.`}
+          </Banner>
+        ) : problem ? (
+          <Banner tone="danger" title={problem.title}>{problem.text}</Banner>
+        ) : null}
+        {waitingNext ? (
+          <Banner tone="info" title="A new plan is waiting" action={<Button variant="ghost" onClick={() => showNext(waitingNext)}>Show it</Button>} />
         ) : null}
       </div>
 
@@ -123,7 +192,7 @@ export default function ApprovalsScreen() {
         <h2 className="title-l" style={{ margin: 0 }}>{approval.summary}</h2>
         <p className="body-l" style={{ margin: 0, color: 'var(--ink-2)' }}>
           {`Made by the scheduler at ${shortTime(approval.requested_at)}. `}
-          {tier ? `It needs you, ${tier.who}, because it changes ${changes.length} works.` : 'It needs no approval.'}
+          {tier ? `It needs you, ${tier.who}, because it changes ${worksText(changes.length)}.` : 'It needs no approval.'}
         </p>
       </Card>
 
@@ -166,21 +235,23 @@ export default function ApprovalsScreen() {
       <Card flat style={COLUMN}>
         <h2 className="title" style={{ margin: 0 }}>Money</h2>
         <div style={ROW}><span className="body">Extra cost of moving works</span><span className="mono">{signedInr(extraCost)}</span></div>
-        <div style={ROW}><span className="body">Repeat repairs avoided</span><span className="mono">{inr(-avoided)}</span></div>
+        {avoided < 0 ? (
+          <div style={ROW}><span className="body">Repeat repairs avoided</span><span className="mono">{inr(-avoided)}</span></div>
+        ) : null}
       </Card>
 
       <section style={COLUMN}>
         <h2 className="title" style={{ margin: 0 }}>Rules check</h2>
         <StepList
           steps={[
-            { text: 'Rules check passed', detail: 'No protected road is dug; every deposit is held', status: 'done' },
-            { text: `${needs.label}: you`, detail: needs.detail, status: decided ? 'done' : 'needs' },
-            { text: 'Department heads are told', detail: 'After you approve', status: decided?.decision === 'approve' ? 'done' : 'waiting' },
+            ...rulesRows,
+            { text: `${needs.label}: you`, detail: needs.detail, status: outcome ? 'done' : 'needs' },
+            { text: 'Department heads are told', detail: 'After you approve', status: outcome === 'approved' ? 'done' : 'waiting' },
           ]}
         />
       </section>
 
-      {rejecting && !decided ? (
+      {rejecting && !decided && !elsewhere ? (
         <TextField
           label="Reason"
           hint="Needed when you reject"
