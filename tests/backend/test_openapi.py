@@ -14,7 +14,11 @@ PHASE_2_PATHS = [
 ]
 
 
+PHASE_3_PATHS = ["/reports/emergency", "/auditor/flags", "/explain/{entity}", "/plan/whatif", "/copilot", "/evals/summary"]
+
+
 def test_every_phase_1_path_is_described():
     spec = app.openapi()
-    assert set(PHASE_1_PATHS + PHASE_2_PATHS) <= set(spec["paths"])
-    assert {"WorkView", "Plan", "RunResult", "LedgerEntry"} <= set(spec["components"]["schemas"])
+    assert set(PHASE_1_PATHS + PHASE_2_PATHS + PHASE_3_PATHS) <= set(spec["paths"])
+    assert {"WorkView", "Plan", "RunResult", "LedgerEntry", "AuditorFlag", "Explanation", "CopilotReply", "EvalSummary",
+            "WhatIfResult"} <= set(spec["components"]["schemas"])

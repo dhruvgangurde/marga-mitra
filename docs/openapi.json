@@ -628,6 +628,48 @@
         }
       }
     },
+    "/plan/whatif": {
+      "post": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Whatif",
+        "description": "The plan if one work started later. Nothing is saved, recorded or sent live.",
+        "operationId": "whatif_plan_whatif_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatIfIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatIfResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/risk/windows": {
       "get": {
         "tags": [
@@ -1191,6 +1233,178 @@
           }
         }
       }
+    },
+    "/reports/emergency": {
+      "post": {
+        "tags": [
+          "residents"
+        ],
+        "summary": "Emergency",
+        "description": "A resident's emergency: a new emergency work, allowed at once, then a re-plan. Never a name or a phone number.",
+        "operationId": "emergency_reports_emergency_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_emergency_reports_emergency_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CitizenReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auditor/flags": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Auditor Flags",
+        "operationId": "auditor_flags_auditor_flags_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditorFlag"
+                  },
+                  "type": "array",
+                  "title": "Response Auditor Flags Auditor Flags Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/explain/{entity}": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Why",
+        "description": "'W-104', 'work:W-104', 'P-0007' or 'plan:P-0007'; with no prefix a work wins.",
+        "operationId": "why_explain__entity__get",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Explanation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/evals/summary": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Evals Summary",
+        "operationId": "evals_summary_evals_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copilot": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Ask",
+        "operationId": "ask_copilot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopilotIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopilotReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1362,6 +1576,68 @@
         ],
         "title": "Assignment"
       },
+      "AuditorFlag": {
+        "properties": {
+          "flag_id": {
+            "type": "string",
+            "title": "Flag Id"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "fail",
+              "warn",
+              "ok"
+            ],
+            "title": "Severity"
+          },
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "work_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "ledger_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ledger Seq"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "flag_id",
+          "severity",
+          "word",
+          "text",
+          "created_at"
+        ],
+        "title": "AuditorFlag"
+      },
       "Body_add_evidence_works__work_id__evidence_post": {
         "properties": {
           "kind": {
@@ -1423,6 +1699,58 @@
           "photo"
         ],
         "title": "Body_add_evidence_works__work_id__evidence_post"
+      },
+      "Body_emergency_reports_emergency_post": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "water",
+              "gas",
+              "power",
+              "cavein",
+              "trench"
+            ],
+            "title": "Category"
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lon"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 280,
+            "title": "Note",
+            "default": ""
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "lat",
+          "lon"
+        ],
+        "title": "Body_emergency_reports_emergency_post"
       },
       "CitizenReport": {
         "properties": {
@@ -1602,6 +1930,165 @@
         "title": "ConfirmationIn",
         "description": "A resident's answer. It never carries a name or a phone number."
       },
+      "CopilotContext": {
+        "properties": {
+          "day": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 27.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "tab": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "negotiation",
+                  "works",
+                  "risk",
+                  "approvals"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tab"
+          },
+          "selected_work": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Work"
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          }
+        },
+        "type": "object",
+        "title": "CopilotContext",
+        "description": "Where the person is on screen. Keys the copilot does not use are ignored."
+      },
+      "CopilotIn": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "context": {
+            "$ref": "#/components/schemas/CopilotContext",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "CopilotIn"
+      },
+      "CopilotReply": {
+        "properties": {
+          "reply_id": {
+            "type": "string",
+            "title": "Reply Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/CopilotStep"
+            },
+            "type": "array",
+            "title": "Steps",
+            "default": []
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/UiAction"
+            },
+            "type": "array",
+            "title": "Actions",
+            "default": []
+          },
+          "used_llm": {
+            "type": "boolean",
+            "title": "Used Llm"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reply_id",
+          "text",
+          "used_llm"
+        ],
+        "title": "CopilotReply"
+      },
+      "CopilotStep": {
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "title": "Step Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "running",
+              "needs",
+              "waiting"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step_id",
+          "text",
+          "status"
+        ],
+        "title": "CopilotStep"
+      },
       "Department": {
         "properties": {
           "id": {
@@ -1641,6 +2128,92 @@
           "roads"
         ],
         "title": "Dept"
+      },
+      "EvalRow": {
+        "properties": {
+          "variant": {
+            "type": "string",
+            "enum": [
+              "naive",
+              "solver_only",
+              "agents",
+              "risk",
+              "full"
+            ],
+            "title": "Variant"
+          },
+          "digs_per_road": {
+            "$ref": "#/components/schemas/Stat"
+          },
+          "lane_closure_hours": {
+            "$ref": "#/components/schemas/Stat"
+          },
+          "trench_hours_in_rain": {
+            "$ref": "#/components/schemas/Stat"
+          },
+          "clashes": {
+            "$ref": "#/components/schemas/Stat"
+          },
+          "days_late": {
+            "$ref": "#/components/schemas/Stat"
+          },
+          "cost_inr": {
+            "$ref": "#/components/schemas/Stat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variant",
+          "digs_per_road",
+          "lane_closure_hours",
+          "trench_hours_in_rain",
+          "clashes",
+          "days_late",
+          "cost_inr"
+        ],
+        "title": "EvalRow"
+      },
+      "EvalSummary": {
+        "properties": {
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Seeds"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/EvalRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "fake_repairs_caught": {
+            "type": "integer",
+            "title": "Fake Repairs Caught"
+          },
+          "fake_repairs_total": {
+            "type": "integer",
+            "title": "Fake Repairs Total"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seeds",
+          "rows",
+          "fake_repairs_caught",
+          "fake_repairs_total",
+          "generated_at"
+        ],
+        "title": "EvalSummary"
       },
       "EventIn": {
         "properties": {
@@ -1756,6 +2329,49 @@
           "uploaded_at"
         ],
         "title": "Evidence"
+      },
+      "Explanation": {
+        "properties": {
+          "entity": {
+            "type": "string",
+            "title": "Entity"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleCheck"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "ledger_seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ledger Seqs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "entity",
+          "title",
+          "reasons",
+          "rules",
+          "ledger_seqs"
+        ],
+        "title": "Explanation"
       },
       "ForecastOverride": {
         "properties": {
@@ -2266,6 +2882,35 @@
         ],
         "title": "PlanVariant"
       },
+      "Reason": {
+        "properties": {
+          "icon": {
+            "type": "string",
+            "title": "Icon"
+          },
+          "lead": {
+            "type": "string",
+            "title": "Lead"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "icon",
+          "lead",
+          "text",
+          "source"
+        ],
+        "title": "Reason"
+      },
       "RiskKind": {
         "type": "string",
         "enum": [
@@ -2331,6 +2976,35 @@
           "label"
         ],
         "title": "RiskWindow"
+      },
+      "RuleCheck": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warn",
+              "fail"
+            ],
+            "title": "Severity"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "severity",
+          "detail"
+        ],
+        "title": "RuleCheck"
       },
       "RunResult": {
         "properties": {
@@ -2423,6 +3097,59 @@
           "segments"
         ],
         "title": "ScenarioLoaded"
+      },
+      "Stat": {
+        "properties": {
+          "median": {
+            "type": "number",
+            "title": "Median"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "median",
+          "low",
+          "high"
+        ],
+        "title": "Stat"
+      },
+      "UiAction": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "select_work",
+              "set_day",
+              "open_tab",
+              "fit_work",
+              "toggle_old_way",
+              "open_drawer",
+              "show_toast"
+            ],
+            "title": "Action"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args",
+            "default": {}
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "UiAction"
       },
       "ValidationError": {
         "properties": {
@@ -2555,6 +3282,50 @@
           "detail"
         ],
         "title": "VerificationCheck"
+      },
+      "WhatIfIn": {
+        "properties": {
+          "work_id": {
+            "type": "string",
+            "title": "Work Id"
+          },
+          "delay_days": {
+            "type": "integer",
+            "maximum": 14.0,
+            "minimum": 1.0,
+            "title": "Delay Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "work_id",
+          "delay_days"
+        ],
+        "title": "WhatIfIn"
+      },
+      "WhatIfResult": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/Plan"
+          },
+          "diff": {
+            "items": {
+              "$ref": "#/components/schemas/WorkChange"
+            },
+            "type": "array",
+            "title": "Diff"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan",
+          "diff",
+          "metrics"
+        ],
+        "title": "WhatIfResult"
       },
       "Work": {
         "properties": {

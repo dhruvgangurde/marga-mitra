@@ -1,0 +1,9 @@
+.venv
+node_modules
+web
+.git
+.cache
+uploads
+tests
+evals/results/runs.csv
+.env
