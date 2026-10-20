@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError, USE_MOCKS } from '../../api/client';
@@ -6,7 +6,7 @@ import { useEvidence, useVerification, useWork } from '../../api/hooks';
 import { dateTimeLabel, inr } from '../../api/format';
 import type { CheckName, CheckStatus, Evidence, VerificationCheck } from '../../api/types';
 import {
-  Button, Card, EmptyState, FocusTarget, LoadError, PhoneScreen, PhotoSlot, Seal, Skeleton, StatusBadge, StepList,
+  Banner, Button, Card, EmptyState, FocusTarget, LoadError, PhoneScreen, PhotoSlot, Seal, Skeleton, StatusBadge, StepList,
 } from '../../ui';
 import { isStateName, RESULT_STATES } from './resultStates';
 import type { ResultState } from './resultStates';
@@ -72,7 +72,9 @@ function photo(label: string, alt: string, e: Evidence | undefined) {
 export default function FieldResultScreen() {
   const { workId = '' } = useParams();
   const [search] = useSearchParams();
-  const sentHere = (useLocation().state as { sent?: boolean } | null)?.sent === true;
+  const sentAt = (useLocation().state as { sentAt?: number } | null)?.sentAt;
+  const sentHere = sentAt != null;
+  const [timedOut, setTimedOut] = useState(false);
   const work = useWork(workId);
   const verification = useVerification(workId);
   const evidenceQuery = useEvidence(workId);
@@ -84,11 +86,19 @@ export default function FieldResultScreen() {
   const result = shown?.result ?? 'pending';
   const { refetch } = verification;
 
+  // Poll only while a send from this session waits for its result, and stop a minute after the send.
   useEffect(() => {
-    if (!shown || result !== 'pending') return;
-    const id = setInterval(() => void refetch(), 2000);
-    return () => clearInterval(id);
-  }, [shown, result, refetch]);
+    if (sentAt == null || result !== 'pending') return;
+    const poll = setInterval(() => void refetch(), 2000);
+    const stop = setTimeout(() => { clearInterval(poll); setTimedOut(true); }, Math.max(0, sentAt + 60000 - Date.now()));
+    return () => { clearInterval(poll); clearTimeout(stop); };
+  }, [sentAt, result, refetch]);
+
+  const stillChecking = timedOut && result === 'pending' ? (
+    <Banner tone="warn" title="Still checking" action={<Button variant="ghost" onClick={() => void refetch()}>Try again</Button>}>
+      This is taking longer than usual.
+    </Banner>
+  ) : null;
 
   const latest = (kind: Evidence['kind']) => evidence.filter((e) => e.kind === kind).at(-1);
   const badge = <span className="mono" style={{ color: 'var(--ink-3)' }}>{workId}</span>;
@@ -108,6 +118,13 @@ export default function FieldResultScreen() {
       body = <EmptyState icon="hardhat" text={`We could not find work ${workId}.`} action={<Button as="a" href="/field">Back to my works</Button>} />;
     } else if (queries.some((q) => q.isError)) {
       body = <LoadError queries={queries} />;
+    } else if (sentHere) {
+      body = (
+        <>
+          {stillChecking}
+          <Outcome shown={null} />
+        </>
+      );
     } else {
       body = <EmptyState icon="camera" text="No result yet. Send the photos first." action={<Button as="a" href={`/field/${workId}`}>Take the photos</Button>} />;
     }
@@ -117,6 +134,7 @@ export default function FieldResultScreen() {
   return (
     <PhoneScreen title="Result" backTo="/field" badge={badge} footer={<Button as="a" href="/field" block>Back to my works</Button>}>
       <LoadError queries={queries} />
+      {stillChecking}
       {/* Focus lands on the outcome only when the crew just sent the photos from the previous screen. */}
       <FocusTarget focus={sentHere}>
         <div

@@ -6,7 +6,7 @@ import { useEvidence, useSegments, useUploadEvidence, useVerification, useVerify
 import { dateTimeLabel, dayRange, deptName, START_DATE } from '../../api/format';
 import type { Assignment, Evidence } from '../../api/types';
 import {
-  Banner, Button, Card, DeptChip, EmptyState, LoadError, metresToLine, PhoneScreen, PhotoSlot, Skeleton, StatusBadge, StepList, TextField,
+  Banner, Button, Card, DeptChip, EmptyState, LoadError, metresToLine, PhoneScreen, PhotoSlot, Skeleton, StatusBadge, StepList,
 } from '../../ui';
 
 type Kind = 'before' | 'after';
@@ -81,7 +81,7 @@ export default function FieldCaptureScreen() {
   // A picked photo shows at once from this local address while it is sending.
   const [sending, setSending] = useState<Partial<Record<Kind, string>>>({});
   const [failed, setFailed] = useState(false);
-  const [note, setNote] = useState('');
+  // The upload has no note field (contracts.Evidence); add one only if the team changes the contract.
   const inputs = useRef<Partial<Record<Kind, HTMLInputElement | null>>>({});
   const previews = useRef<string[]>([]);
 
@@ -147,7 +147,7 @@ export default function FieldCaptureScreen() {
     setFailed(false);
     try {
       await verify.mutateAsync(workId);
-      navigate(`/field/${workId}/result`, { state: { sent: true } });
+      navigate(`/field/${workId}/result`, { state: { sentAt: Date.now() } });
     } catch {
       setFailed(true);
     }
@@ -236,15 +236,6 @@ export default function FieldCaptureScreen() {
         <h2 className="title" style={{ margin: 0 }}>2 · After the repair</h2>
         {slot('after', 'After photo', 'Take it when the trench is closed and the road is patched.', after)}
       </section>
-
-      <TextField
-        label="Note for the inspector"
-        hint="Optional"
-        multiline
-        placeholder="Anything the inspector should know"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-      />
     </PhoneScreen>
   );
 }
