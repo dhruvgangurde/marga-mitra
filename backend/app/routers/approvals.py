@@ -6,6 +6,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 
 from backend.app import store
+from backend.app.auditor import safe_audit
 from backend.app.db import session
 from backend.app.deps import day_range, in_session
 from backend.app.routers.plans import emit_plan_updated
@@ -69,4 +70,5 @@ async def decide(request: Request, approval_id: str, body: ApprovalDecision) -> 
         await wiring.deps.save_plan(plan.model_copy(update={"status": status}))
     await wiring.deps.emit(WsEvent(type="approval.decided", data=approval.model_dump(mode="json"), ts=datetime.now(UTC)))
     await emit_plan_updated(wiring.deps, approval.plan_id, result.metrics)
+    await safe_audit(request.app)
     return result

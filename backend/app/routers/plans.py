@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 
 from backend.app import store
+from backend.app.auditor import safe_audit
 from backend.app.db import session
 from backend.app.deps import in_session, with_windows
 from backend.app.ids import next_id
@@ -75,6 +76,7 @@ async def _run(app: FastAPI, run_id: str, seed: int, reason: str, base_plan_id: 
         logger.exception("Run %s failed", run_id)
         failed = RunResult(run_id=run_id, status="failed", note="The plan could not be made.")
         await asyncio.to_thread(in_session, store.update_run, failed)
+    await safe_audit(app)
 
 
 async def start_background_run(app: FastAPI, seed: int, reason: str) -> RunResult:

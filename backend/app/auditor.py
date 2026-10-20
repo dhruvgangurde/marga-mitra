@@ -1,13 +1,33 @@
 """The auditor: four rules that flag odd patterns in plans, photos and the record. find_flags is pure."""
+import asyncio
+import logging
 import re
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
+from fastapi import FastAPI
 from pydantic import ValidationError
 
+from backend.app import store
+from backend.app.config import get_settings
+from backend.app.db import session
+from backend.app.deps import in_session
+from backend.app.ids import next_id
 from backend.app.verify.phash import distance
 from backend.app.words import clock, day_label, dept_name
-from contracts.models import Approval, Evidence, LedgerEntry, Plan, PolicyResult, Scenario, Verification
+from contracts.models import (
+    Approval,
+    AuditorFlag,
+    Evidence,
+    LedgerEntry,
+    Plan,
+    PolicyResult,
+    Scenario,
+    Verification,
+    WsEvent,
+)
+
+logger = logging.getLogger(__name__)
 
 REUSED = re.compile(r"^Same as (the (before|after) photo|a resident's photo) of (\S+) \((\d+)% alike\)$")
 MOVES_WITHIN = timedelta(days=3)
@@ -148,3 +168,50 @@ def _approved_with_warning(x: AuditInputs) -> list[Finding]:
 
 def find_flags(x: AuditInputs) -> list[Finding]:
     return [*_photo_reused(x), *_moved_twice(x), *_emergency_review(x), *_approved_with_warning(x)]
+
+
+def load_inputs(seed: int, today_day: int) -> AuditInputs:
+    with session() as s:
+        scenario = store.get_scenario(s, seed)
+        plans = store.list_plans(s, seed)
+        ids = {p.plan_id for p in plans}
+        return AuditInputs(
+            scenario=scenario, plans=plans, verifications=store.latest_verifications(s, seed),
+            evidence=store.all_evidence(s, seed), approvals=[a for a in store.list_approvals(s) if a.plan_id in ids],
+            entries=store.entries_by_action(s, ["emergency.allowed", "rules.checked"]),
+            today=scenario.start_date + timedelta(days=today_day))
+
+
+async def _raise(app: FastAPI, seed: int, f: Finding) -> AuditorFlag | None:
+    """Record, store and send one finding; None when the stored flag already says the same."""
+    key = f"{f.rule}:{f.subject}"
+    old = await asyncio.to_thread(in_session, store.get_flag, seed, key)
+    if old and (old.severity, old.word, old.text) == (f.severity, f.word, f.text):
+        return None
+    flag_id = old.flag_id if old else await asyncio.to_thread(in_session, next_id, "F")
+    deps = app.state.wiring.deps
+    entry = await deps.ledger_append("auditor", "auditor.flag", f.entity, f.headline,
+                                     {"flag_id": flag_id, "rule": f.rule, "severity": f.severity, "word": f.word,
+                                      "work_id": f.work_id, "text": f.text})
+    flag = AuditorFlag(flag_id=flag_id, severity=f.severity, word=f.word, work_id=f.work_id, text=f.text,
+                       ledger_seq=entry.seq, created_at=entry.ts)
+    await asyncio.to_thread(in_session, store.save_flag, seed, key, f.rule, flag)
+    await deps.emit(WsEvent(type="auditor.flag", data=flag.model_dump(mode="json"), ts=datetime.now(UTC)))
+    return flag
+
+
+async def audit(app: FastAPI) -> list[AuditorFlag]:
+    """Run the four rules on the active test case; returns the flags that are new or changed."""
+    async with app.state.audit_lock:
+        seed = app.state.seed
+        x = await asyncio.to_thread(load_inputs, seed, get_settings().today_day)
+        raised = [await _raise(app, seed, f) for f in find_flags(x)]
+        return [f for f in raised if f]
+
+
+async def safe_audit(app: FastAPI) -> None:
+    """The auditor never stops the action that started it."""
+    try:
+        await audit(app)
+    except Exception:  # any failure here must leave the plan, approval or photo check as it is
+        logger.exception("The auditor could not run.")

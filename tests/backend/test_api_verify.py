@@ -78,7 +78,8 @@ def test_reused_photo_holds_the_money(client, uploads_dir, fake_llm):
     v = client.post("/works/T-001/verify").json()
     assert (v["result"], v["deposit_released"]) == ("held", False)
     assert _checks(v)["reuse"] == ("fail", "Same as the before photo of W-001 (100% alike)")
-    summaries = [e["summary"] for e in client.get("/ledger", params={"limit": 2}).json()]
+    summaries = [e["summary"] for e in client.get("/ledger").json()
+                 if e["action"] in ("deposit.held", "verification.decided")][:2]
     assert summaries == ["₹1,00,000 held for T-001; an inspector is called",
                          "Money held for T-001: Same as the before photo of W-001 (100% alike)"]
     assert _statuses(client)["T-001"] == "held"

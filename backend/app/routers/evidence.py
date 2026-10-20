@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
 
 from backend.app import storage, store
+from backend.app.auditor import safe_audit
 from backend.app.db import session
 from backend.app.ids import next_id
 from backend.app.routers.city import DEPT_NAMES
@@ -146,6 +147,7 @@ async def verify_work(app: FastAPI, seed: int, work_id: str) -> Verification:
         await deps.ledger_append("photo_check", "deposit.held", entity,
                                  f"{money} held for {work_id}; an inspector is called", ids)
     await deps.emit(WsEvent(type="verification.result", data=v.model_dump(mode="json"), ts=datetime.now(UTC)))
+    await safe_audit(app)
     return v
 
 

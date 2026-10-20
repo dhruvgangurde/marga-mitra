@@ -10,8 +10,10 @@ from sqlalchemy.orm import Session
 
 from backend.app.tables import (
     ApprovalRow,
+    AuditorFlagRow,
     CitizenReportRow,
     EvidenceRow,
+    LedgerRow,
     NegotiationMessageRow,
     PlanRow,
     RiskWindowRow,
@@ -23,8 +25,10 @@ from backend.app.tables import (
 )
 from contracts.models import (
     Approval,
+    AuditorFlag,
     CitizenReport,
     Evidence,
+    LedgerEntry,
     NegotiationMessage,
     Plan,
     RiskWindow,
@@ -239,6 +243,11 @@ def evidence_of_others(s: Session, seed: int, work_id: str) -> list[Evidence]:
     return _evidence(s, EvidenceRow.seed == seed, EvidenceRow.work_id != work_id)
 
 
+def all_evidence(s: Session, seed: int) -> list[Evidence]:
+    """Every photo of this test case, oldest first."""
+    return _evidence(s, EvidenceRow.seed == seed)
+
+
 def evidence_path(s: Session, evidence_id: str) -> str | None:
     return s.scalar(select(EvidenceRow.rel_path).where(EvidenceRow.evidence_id == evidence_id))
 
@@ -278,3 +287,27 @@ def confirmations(s: Session, seed: int, work_id: str) -> list[CitizenReport]:
          .where(CitizenReportRow.seed == seed, CitizenReportRow.kind == "confirmation", CitizenReportRow.work_id == work_id)
          .order_by(CitizenReportRow.created_at, CitizenReportRow.report_id))
     return [CitizenReport.model_validate(d) for d in s.scalars(q)]
+
+
+# ---------- auditor ----------
+def get_flag(s: Session, seed: int, key: str) -> AuditorFlag | None:
+    data = s.scalar(select(AuditorFlagRow.data).where(AuditorFlagRow.seed == seed, AuditorFlagRow.key == key))
+    return AuditorFlag.model_validate(data) if data else None
+
+
+def save_flag(s: Session, seed: int, key: str, rule: str, flag: AuditorFlag) -> None:
+    s.merge(AuditorFlagRow(flag_id=flag.flag_id, seed=seed, key=key, rule=rule, severity=flag.severity,
+                           work_id=flag.work_id, created_at=flag.created_at, data=flag.model_dump(mode="json")))
+    s.flush()
+
+
+def list_flags(s: Session, seed: int) -> list[AuditorFlag]:
+    q = (select(AuditorFlagRow.data).where(AuditorFlagRow.seed == seed)
+         .order_by(AuditorFlagRow.created_at.desc(), AuditorFlagRow.flag_id.desc()))
+    return [AuditorFlag.model_validate(d) for d in s.scalars(q)]
+
+
+def entries_by_action(s: Session, actions: list[str]) -> list[LedgerEntry]:
+    """Record entries with these actions, oldest first."""
+    q = select(LedgerRow).where(LedgerRow.action.in_(actions)).order_by(LedgerRow.seq)
+    return [LedgerEntry.model_validate(r, from_attributes=True) for r in s.scalars(q)]
