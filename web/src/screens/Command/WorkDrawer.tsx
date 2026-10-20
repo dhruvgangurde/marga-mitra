@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { dayRange, deptName, inr, metres, signedInr, timeLabel, workStatusBadge } from '../../api/format';
+import { dayRange, deptName, errorText, inr, metres, signedInr, timeLabel, workStatusBadge } from '../../api/format';
 import { useExplain, useLedger, useShownPlan, useVerification, useWhatIf, useWorks } from '../../api/hooks';
 import type { WhatIfResult, WorkView } from '../../api/types';
 import { Button, Card, DeptChip, DiffRow, Icon, IconButton, StatusBadge, StepList, TextField } from '../../ui';
@@ -74,7 +74,7 @@ function DrawerBody({ view, partner, onClose, onFit }: { view: WorkView; partner
       return;
     }
     setError(undefined);
-    whatIf.mutate({ work_id: (partner ?? view).work.work_id, delay_days: days }, { onSuccess: setResult });
+    whatIf.mutate({ work_id: (partner ?? view).work.work_id, delay_days: days }, { onSuccess: setResult, onError: (e) => setError(errorText(e)) });
   };
 
   const moved = assignment && assignment.start_day !== work.requested_start;

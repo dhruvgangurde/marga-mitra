@@ -168,3 +168,21 @@ export function metricDelta(now: number, old: number, kind: MetricKind): { delta
 export function compareLabel(old: number): string {
   return 'Old way ' + old.toLocaleString('en-IN');
 }
+
+// A sentence for any error. It reads only status and detail, so this file keeps no run-time imports.
+export function errorText(e: unknown): string {
+  const err = (typeof e === 'object' && e !== null ? e : {}) as { status?: unknown; detail?: unknown };
+  const status = typeof err.status === 'number' ? err.status : undefined;
+  const detail = err.detail;
+  if (status === 0) return 'Could not reach MargaMitra. Check that the server is running.';
+  if (status === 404 && detail === 'Not Found') return 'This is not available yet.';
+  if (status !== undefined && status >= 500) return 'Something went wrong on the server. Try again.';
+  if (status !== undefined && typeof detail === 'string' && detail && !/[{[]/.test(detail)) return detail.slice(0, 160);
+  if (status === 422 && Array.isArray(detail)) return 'Some details are not valid.';
+  return 'Something went wrong. Try again.';
+}
+
+// "to" of a message: a sender id gives its display name, anything else comes back unchanged.
+export function recipientLabel(r: string): string {
+  return r === 'everyone' ? 'Everyone' : deptName(r);
+}

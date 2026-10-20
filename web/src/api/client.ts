@@ -5,10 +5,10 @@ export const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000/ws';
 
 export class ApiError extends Error {
   status: number;
-  detail: string;
+  detail: unknown;
 
-  constructor(status: number, detail: string) {
-    super(detail);
+  constructor(status: number, detail: unknown) {
+    super(typeof detail === 'string' ? detail : 'Request failed');
     this.name = 'ApiError';
     this.status = status;
     this.detail = detail;
@@ -17,16 +17,22 @@ export class ApiError extends Error {
 
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const isForm = body instanceof FormData;
-  const response = await fetch(API_BASE + path, {
-    method,
-    headers: body !== undefined && !isForm ? { 'Content-Type': 'application/json' } : undefined,
-    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(API_BASE + path, {
+      method,
+      headers: body !== undefined && !isForm ? { 'Content-Type': 'application/json' } : undefined,
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+    });
+  } catch {
+    // The server is down, the address is wrong or the browser blocked the call.
+    throw new ApiError(0, 'network');
+  }
   if (!response.ok) {
-    let detail = response.statusText;
+    let detail: unknown = response.statusText;
     try {
       const data = (await response.json()) as { detail?: unknown };
-      if (typeof data.detail === 'string') detail = data.detail;
+      if (typeof data.detail === 'string' || Array.isArray(data.detail)) detail = data.detail;
     } catch {
       // The server sent no JSON; the status text is the best sentence we have.
     }

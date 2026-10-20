@@ -1,8 +1,8 @@
 // Run with: node --experimental-strip-types scripts/check-format.ts
 import assert from 'node:assert/strict';
 import {
-  actorLabel, aqiBand, compareLabel, dateTimeLabel, dayDate, dayLabel, dayRange, deptName, inr,
-  linkLabel, methodLabel, metres, metricDelta, shortTime, signedInr, START_DATE, timeLabel, TODAY_DAY,
+  actorLabel, aqiBand, compareLabel, dateTimeLabel, dayDate, dayLabel, dayRange, deptName, errorText, inr,
+  linkLabel, methodLabel, metres, metricDelta, recipientLabel, shortTime, signedInr, START_DATE, timeLabel, TODAY_DAY,
   workStatusBadge,
 } from '../src/api/format.ts';
 
@@ -76,5 +76,28 @@ assert.deepEqual(metricDelta(0.4, 0, 'days_late'), { delta: '+0.4', better: fals
 assert.deepEqual(metricDelta(0, 0, 'trench_hours_in_rain'), { better: true });
 assert.equal(compareLabel(3.4), 'Old way 3.4');
 assert.equal(compareLabel(1096), 'Old way 1,096');
+
+// errors in plain words
+assert.equal(errorText({ status: 0, detail: 'network' }), 'Could not reach MargaMitra. Check that the server is running.');
+assert.equal(errorText({ status: 404, detail: 'Not Found' }), 'This is not available yet.');
+assert.equal(errorText({ status: 404, detail: 'Unknown work W-999' }), 'Unknown work W-999');
+assert.equal(errorText({ status: 409, detail: 'This approval is already decided' }), 'This approval is already decided');
+assert.equal(errorText({ status: 422, detail: [{ loc: ['body'], msg: 'field required' }] }), 'Some details are not valid.');
+assert.equal(errorText({ status: 422, detail: 'Give a reason to reject' }), 'Give a reason to reject');
+assert.equal(errorText({ status: 500, detail: 'Internal Server Error' }), 'Something went wrong on the server. Try again.');
+assert.equal(errorText({ status: 503, detail: [] }), 'Something went wrong on the server. Try again.');
+assert.equal(errorText({ status: 400, detail: '{"x": 1}' }), 'Something went wrong. Try again.');
+assert.equal(errorText({ status: 400, detail: '[1, 2]' }), 'Something went wrong. Try again.');
+assert.equal(errorText({ status: 418, detail: 'x'.repeat(200) }).length, 160);
+assert.equal(errorText(new Error('boom')), 'Something went wrong. Try again.');
+assert.equal(errorText(null), 'Something went wrong. Try again.');
+assert.equal(errorText(undefined), 'Something went wrong. Try again.');
+
+// who a message is for
+const recipients: [string, string][] = [
+  ['water', 'Water'], ['coordinator', 'Coordinator'], ['solver', 'Scheduler'], ['everyone', 'Everyone'],
+  ['Scheduler', 'Scheduler'], ['Everyone', 'Everyone'], ['Water', 'Water'],
+];
+for (const [id, name] of recipients) assert.equal(recipientLabel(id), name);
 
 console.log('format ok');

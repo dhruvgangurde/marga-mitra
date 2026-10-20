@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { compareLabel, dayLabel, metricDelta, TODAY_DAY } from '../../api/format';
+import { compareLabel, dayLabel, errorText, metricDelta, TODAY_DAY } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import {
   useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
@@ -251,7 +251,7 @@ export default function CommandScreen() {
                 title="Could not load the plan"
                 action={<Button variant="secondary" onClick={tryAgain}>Try again</Button>}
               >
-                Check your connection and try again.
+                {errorText(planQ.error ?? worksQ.error)}
               </Banner>
             ) : loading ? (
               <Card><span className="mono" style={{ color: 'var(--ink-3)' }}>Loading{'\u2026'}</span></Card>
