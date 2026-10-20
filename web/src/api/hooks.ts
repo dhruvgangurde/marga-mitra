@@ -1,5 +1,6 @@
 // The only way screens get data. Phase 3 points the same hooks at the real API.
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { USE_MOCKS } from './client';
 import {
   addEvent, confirmRoad, copilot, decideApproval, forecastOverride, getApprovals, getAuditorFlags, getDepartments,
   getEvalsSummary, getEvidence, getHealth, getLedger, getNegotiation, getNoDig, getPlan, getPlanDiff, getPlanMetrics,
@@ -155,6 +156,22 @@ export const useEvidence = (workId?: string) => useQuery({
 export const useVerification = (workId?: string) => useQuery({
   queryKey: keys.verification(workId ?? ''), queryFn: () => getVerification(workId as string), enabled: Boolean(workId),
 });
+
+// Why a new plan cannot be asked for right now: the scheduler is working, or a plan waits for approval.
+export function usePlanBusy(): { running: boolean; waiting: boolean } {
+  const shown = useShownRunId();
+  const run = useRun(shown).data;
+  const pending = useApprovals('pending').data ?? [];
+  return { running: run?.status === 'running', waiting: pending.length > 0 };
+}
+
+// The rules check of a plan, as the ledger wrote it: "Rules check passed" or "Rules check failed: ...".
+export function useRulesCheck(planId?: string): string | undefined {
+  const entries = useLedger(200).data;
+  if (!planId) return undefined;
+  if (USE_MOCKS) return 'Rules check passed';
+  return entries?.find((e) => e.action === 'rules.checked' && e.entity === `plan:${planId}`)?.summary;
+}
 
 export const useExplain = (entity?: string) => useQuery({
   queryKey: keys.explain(entity ?? ''), queryFn: () => explain(entity as string), enabled: Boolean(entity),

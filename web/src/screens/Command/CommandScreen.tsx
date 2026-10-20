@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { compareLabel, dayLabel, errorText, metricDelta, TODAY_DAY } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import {
-  useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
+  useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanBusy, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
 } from '../../api/hooks';
 import type { Metrics } from '../../api/types';
 import { mapLegendCounts } from '../../map/geo';
@@ -107,6 +107,7 @@ export default function CommandScreen() {
   };
 
   const orchestrate = useOrchestrate();
+  const busy = usePlanBusy();
   const replan = () => orchestrate.mutate(undefined, {
     onSuccess: (run) => {
       if (run.status === 'running') setParam('tab', 'negotiation');
@@ -234,7 +235,12 @@ export default function CommandScreen() {
         >
           Simulate rain
         </Button>
-        <Button variant="secondary" icon="refresh" onClick={replan} disabled={orchestrate.isPending}>Re-plan</Button>
+        <Button variant="secondary" icon="refresh" onClick={replan}
+          disabled={orchestrate.isPending || busy.running || busy.waiting}
+          title={busy.running ? 'The scheduler is working on a plan' : busy.waiting ? 'Approve or reject the waiting plan first' : undefined}
+        >
+          Re-plan
+        </Button>
       </div>
 
       <aside className={folded ? 'mm-app-cmd__panel mm-app-cmd__panel--folded' : 'mm-app-cmd__panel'}>
