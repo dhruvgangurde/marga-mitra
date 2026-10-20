@@ -87,7 +87,7 @@ export function NegotiationTab({ onReview }: { onReview: () => void }) {
       <div className="mm-app-neg__list" aria-live="polite">
         {messages.map((m) => (
           <NegotiationMessage
-            key={m.msg_id}
+            key={`${m.run_id}/${m.msg_id}`}
             sender={m.sender}
             to={m.recipients.map(recipientLabel).join(', ')}
             type={m.type}
@@ -95,7 +95,7 @@ export function NegotiationTab({ onReview }: { onReview: () => void }) {
             time={timeLabel(m.ts)}
             body={m.body}
             options={m.type === 'COUNTER' ? m.options.map((o) => ({ label: o.label, cost: signedInr(o.cost_delta_inr) })) : undefined}
-            fresh={fresh.has(m.msg_id)}
+            fresh={fresh.has(`${m.run_id}/${m.msg_id}`)}
           />
         ))}
       </div>

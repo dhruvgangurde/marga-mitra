@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useConnectionLost } from '../api/live';
 import { TopBar } from '../ui';
 import type { TopBarProps } from '../ui';
 import { RoleMenu, roleLabel, useRole } from './role';
@@ -19,6 +20,7 @@ export function DesktopLayout() {
   const navigate = useNavigate();
   const { role } = useRole();
   const [menu, setMenu] = useState(false);
+  const lost = useConnectionLost();
   const closeMenu = useCallback(() => setMenu(false), []);
 
   const first = pathname.split('/')[1] ?? '';
@@ -39,7 +41,7 @@ export function DesktopLayout() {
       <TopBar
         active={active}
         links={NAV.map((n) => ({ id: n.id, label: n.label, href: n.href, onClick: () => navigate(n.href) }))}
-        place="Live · Surathkal"
+        place={lost ? 'Reconnecting \u00b7 Surathkal' : 'Live \u00b7 Surathkal'}
         role={shownRole}
         onRole={() => setMenu((m) => !m)}
         homeHref="/"
