@@ -106,6 +106,8 @@ def main() -> None:
         ("T-230-after.jpg", "T-230", "after", reuse_copy(make_photo("open", 2211)), 9, _at(10, 9, 40), "phone"),
         ("P-125-before.jpg", "P-125", "before", make_photo("open", 1251), 15, _at(8, 9, 0), "photo"),
         ("P-125-after.jpg", "P-125", "after", make_photo("dark", 1251), 15, _at(9, 18, 30), "photo"),
+        ("D-415-before.jpg", "D-415", "before", make_photo("open", 4151), 10, _at(2, 8, 30), "photo"),
+        ("D-415-after.jpg", "D-415", "after", make_photo("patched", 4151), 10, _at(5, 16, 45), "photo"),
     ]
     OUT.mkdir(parents=True, exist_ok=True)
     listing = []

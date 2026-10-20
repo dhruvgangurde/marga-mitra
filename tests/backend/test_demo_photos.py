@@ -39,6 +39,14 @@ def test_reused_photo_is_close():
     assert distance(_print(reuse_copy(make_photo("open", 2211))), _print(make_photo("open", 2211))) <= 8
 
 
+def test_drain_photos_differ_from_the_others():
+    phase_2 = [_print(make_photo(scene, seed)) for scene, seed in
+               (("open", 1041), ("patched", 1041), ("open", 2211), ("open", 2301), ("open", 1251), ("dark", 1251))]
+    phase_2.append(_print(reuse_copy(make_photo("open", 2211))))
+    for drain in (_print(make_photo("open", 4151)), _print(make_photo("patched", 4151))):
+        assert min(distance(drain, other) for other in phase_2) >= 16
+
+
 def test_different_sites_are_far_apart():
     prints = [_print(make_photo("open", seed)) for seed in (1041, 2211, 2301, 1251)]
     assert all(distance(a, b) >= 16 for a, b in combinations(prints, 2))
