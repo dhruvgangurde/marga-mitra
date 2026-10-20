@@ -79,7 +79,7 @@ export default function CommandScreen() {
     toastTimer.current = setTimeout(() => setToast(null), 6000);
   };
   // The rain toast waits for the new plan and its changes, so the count is the real one.
-  const rainToast = useRef<string | null>(params.get('demo') === 'rain' ? '' : null);
+  const rainToast = useRef<string | null>(USE_MOCKS && params.get('demo') === 'rain' ? '' : null);
   const rainDiff = usePlanDiff(plan?.plan_id, plan?.base_plan_id ?? undefined).data;
   useEffect(() => () => clearTimeout(toastTimer.current), []);
   useEffect(() => {
