@@ -1,14 +1,29 @@
-"""Plan every test case in the five ways of the Impact page and summarize the results."""
+"""Plan every test case in the five ways of the Impact page and summarize the results.
+
+    python -m evals.run                          # test cases 1 to 50, writes evals/results/summary.json and runs.csv
+    python -m evals.run --seeds 1-3 --fixed-time # a quick run with a fixed generated_at
+"""
 from __future__ import annotations
 
+import argparse
+import asyncio
+import csv
+import json
 import os
 import random
+import sys
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
-from contracts import fakes, rules
+from contracts import costs, fakes, rules
 from contracts.models import (
+    EvalRow,
+    EvalSummary,
+    Metrics,
     NegotiationOutcome,
     Plan,
     PlanVariant,
@@ -16,9 +31,15 @@ from contracts.models import (
     RiskWindow,
     Scenario,
     SolveConstraints,
+    Stat,
     WsEvent,
 )
+from evals import fake_repairs
+from evals.fake_repairs import FakeRepairResult
 from evals.imports import optional
+from evals.stats import stat
+from solver.baselines import naive_plan
+from solver.metrics import compute_metrics
 from solver.solve import days_text, solve
 
 
@@ -112,6 +133,109 @@ async def plan_variant(variant: str, scenario: Scenario, parts: Parts, naive: Pl
     raise ValueError(f"unknown variant: {variant}")
 
 
+CSV_FIELDS = ("seed", "variant", "plan_id", "excavations", "digs_per_road", "lane_closure_hours", "trench_hours_in_rain",
+              "clashes", "days_late", "cost_inr", "dust_score")
+ROW_FIELDS = ("digs_per_road", "lane_closure_hours", "trench_hours_in_rain", "clashes", "days_late", "cost_inr")
+
+
+@dataclass
+class Evaluation:
+    metrics: dict[str, list[Metrics]]  # variant -> one Metrics per seed, in seed order
+    csv_rows: list[dict[str, object]]
+    seconds: dict[str, float]  # variant -> total planning time
+
+
+async def evaluate(seeds: list[int], parts: Parts) -> Evaluation:
+    force_no_llm()
+    ev = Evaluation(metrics={v: [] for v in VARIANTS}, csv_rows=[], seconds=dict.fromkeys(VARIANTS, 0.0))
+    for seed in seeds:
+        scenario = parts.generate_scenario(seed)
+        stormy = with_windows(scenario, eval_windows(scenario, parts))
+        naive = naive_plan(scenario)
+        plans: dict[str, Plan] = {}
+        for variant in VARIANTS:
+            t0 = time.perf_counter()
+            plans[variant] = plans["risk"] if variant == "full" else await plan_variant(variant, scenario, parts, naive)
+            ev.seconds[variant] += time.perf_counter() - t0
+            m = compute_metrics(plans[variant], stormy)
+            ev.metrics[variant].append(m)
+            ev.csv_rows.append({"seed": seed, "variant": variant, **m.model_dump(include=set(CSV_FIELDS))})
+    return ev
+
+
+def summarize(ev: Evaluation, seeds: list[int], fake: FakeRepairResult, generated_at: datetime) -> EvalSummary:
+    rows = [EvalRow(variant=v, **{f: stat([float(getattr(m, f)) for m in ev.metrics[v]]) for f in ROW_FIELDS})
+            for v in VARIANTS]
+    return EvalSummary(seeds=seeds, rows=rows, fake_repairs_caught=fake.caught, fake_repairs_total=fake.total,
+                       generated_at=generated_at)
+
+
+def write_summary(summary: EvalSummary, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(summary.model_dump(mode="json"), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def write_csv(rows: list[dict[str, object]], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _cell(s: Stat, show: Callable[[float], str]) -> str:
+    return f"{show(s.median)} ({show(s.low)}–{show(s.high)})"
+
+
+def table(summary: EvalSummary) -> str:
+    one = "{:.1f}".format
+    hours = "{:,.0f}".format
+
+    def money(x: float) -> str:
+        return costs.inr(round(x))
+
+    lines = [["What is switched on", "Digs per road", "Lane-closure hours", "Trench-hours in rain", "Clashes",
+              "Days late", "Cost"]]
+    lines += [[LABELS[r.variant], _cell(r.digs_per_road, one), _cell(r.lane_closure_hours, hours),
+               _cell(r.trench_hours_in_rain, hours), _cell(r.clashes, one), _cell(r.days_late, one),
+               _cell(r.cost_inr, money)] for r in summary.rows]
+    widths = [max(len(line[i]) for line in lines) for i in range(len(lines[0]))]
+    return "\n".join("  ".join(c.ljust(w) for c, w in zip(line, widths, strict=True)).rstrip() for line in lines)
+
+
+def _timing(seconds: dict[str, float], plans: int) -> str:
+    parts = " · ".join(f"{v} {seconds[v]:.1f} s" for v in VARIANTS if v != "full")
+    total = sum(seconds.values())
+    line = f"Planning time: {parts} · total {total:.1f} s for {plans} plans"
+    return line + (" Slower than the 3-minute goal." if total > 180 else "")
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Plan every test case in the five ways of the Impact page.")
+    parser.add_argument("--seeds", default="1-50", help="test cases, for example 1-50 or 1-3,7")
+    parser.add_argument("--out", default="evals/results/summary.json")
+    parser.add_argument("--csv", default="evals/results/runs.csv")
+    parser.add_argument("--fixed-time", action="store_true", help="set generated_at to a fixed time")
+    args = parser.parse_args(argv)
+    seeds = parse_seeds(args.seeds)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # ₹ and – are not in the Windows pipe code page
+
+    parts = load_parts()
+    print(f"Stand-ins: {', '.join(parts.stand_ins)} (their modules are not merged yet)" if parts.stand_ins
+          else "Stand-ins: none")
+    ev = asyncio.run(evaluate(seeds, parts))
+    fake = fake_repairs.count_caught(fake_repairs.load_decide())
+    summary = summarize(ev, seeds, fake, fakes.now() if args.fixed_time else datetime.now(UTC))
+    write_summary(summary, Path(args.out))
+    write_csv(ev.csv_rows, Path(args.csv))
+
+    print(table(summary))
+    print(f"Fake repairs caught: {fake.caught} of {fake.total} "
+          f"(genuine repairs passed: {fake.genuine_passed} of {fake.genuine_total})" + (f" {fake.note}" if fake.note else ""))
+    print(_timing(ev.seconds, len(seeds) * (len(VARIANTS) - 1)))
+
+
 def parse_seeds(text: str) -> list[int]:
     """'1-50' or '1-3,7': comma-separated seeds and inclusive ranges, sorted without duplicates."""
     if not text.strip():
@@ -127,3 +251,7 @@ def parse_seeds(text: str) -> list[int]:
             raise ValueError(f"seeds start at 1: {item.strip()}")
         seeds.update(range(start, end + 1))
     return sorted(seeds)
+
+
+if __name__ == "__main__":
+    main()
