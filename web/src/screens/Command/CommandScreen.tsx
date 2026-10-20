@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { compareLabel, dayLabel, errorText, metricDelta, TODAY_DAY } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import {
-  useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanBusy, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
+  useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanBusy, usePlanDiff, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
 } from '../../api/hooks';
 import type { Metrics } from '../../api/types';
 import { mapLegendCounts } from '../../map/geo';
@@ -20,8 +20,6 @@ import { Banner, Button, Card, Icon, MapLegend, MetricTile, Tabs, TimelineSlider
 
 const TABS = ['negotiation', 'works', 'risk', 'approvals'] as const;
 type TabId = (typeof TABS)[number];
-
-const RAIN_TOAST = 'Plan updated. 3 works moved out of the rain window.';
 
 const WEEK_TICKS = ['2 Nov', '9 Nov', '16 Nov', '23 Nov'];
 
@@ -79,14 +77,20 @@ export default function CommandScreen() {
     setToast({ text, view });
     toastTimer.current = setTimeout(() => setToast(null), 6000);
   };
+  // The rain toast waits for the new plan and its changes, so the count is the real one.
+  const rainToast = useRef<string | null>(params.get('demo') === 'rain' ? '' : null);
+  const rainDiff = usePlanDiff(plan?.plan_id, plan?.base_plan_id ?? undefined).data;
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
   useEffect(() => {
-    if (params.get('demo') === 'rain') showToast(RAIN_TOAST, true);
-    return () => clearTimeout(toastTimer.current);
+    if (rainToast.current === null || !plan || !rainDiff) return;
+    if (plan.status !== 'waiting_approval' || !plan.base_plan_id || plan.plan_id === rainToast.current) return;
+    rainToast.current = null;
+    showToast(`Plan updated. ${rainDiff.length} works moved out of the rain window.`, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [plan, rainDiff]);
   useLiveEvent('plan.updated', (data) => {
     const hasRain = windows.some((w) => w.kind === 'rain' && w.source === 'override');
-    if (data.status === 'waiting_approval' && hasRain) showToast(RAIN_TOAST, true);
+    if (data.status === 'waiting_approval' && hasRain) rainToast.current = plan?.plan_id ?? '';
   });
   // Play steps the day forward every 700 ms and stops at the last day.
   useEffect(() => {
@@ -230,7 +234,7 @@ export default function CommandScreen() {
           variant="ghost"
           icon="rain"
           onClick={simulateRain}
-          disabled={rainOn || forecast.isPending}
+          disabled={rainOn || forecast.isPending || busy.running}
           title={rainOn ? 'Rain is already simulated' : undefined}
         >
           Simulate rain
