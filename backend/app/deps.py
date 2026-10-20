@@ -17,6 +17,7 @@ from contracts import fakes, interfaces
 from contracts.interfaces import Deps
 from contracts.models import (
     Approval,
+    CopilotReply,
     LedgerEntry,
     NegotiationMessage,
     Plan,
@@ -53,6 +54,7 @@ class Wiring:
     pure_generate: Callable[[int], Scenario]
     start_run: Callable[..., Awaitable[RunResult]]
     resume_run: Callable[..., Awaitable[RunResult]]
+    run_copilot: Callable[..., Awaitable[CopilotReply]]
     fakes: list[str]
 
 
@@ -165,7 +167,8 @@ def build_wiring() -> Wiring:
     pure = {name: pick(name, getattr(stand_ins, name)) for name in PURE}
     start_run = pick("start_run", fakes.fake_start_run)
     resume_run = pick("resume_run", fakes.fake_resume_run)
+    run_copilot = pick("run_copilot", fakes.fake_run_copilot)
     if used_fakes:
         logger.info("Using stand-ins for: %s", ", ".join(used_fakes))
     return Wiring(deps=_db_deps(pure), pure_generate=pure["generate_scenario"], start_run=start_run,
-                  resume_run=resume_run, fakes=used_fakes)
+                  resume_run=resume_run, run_copilot=run_copilot, fakes=used_fakes)

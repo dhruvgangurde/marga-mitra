@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from contracts.models import Metrics, Plan, WorkChange
 
@@ -81,3 +81,18 @@ class WhatIfResult(BaseModel):
     plan: Plan
     diff: list[WorkChange]
     metrics: Metrics
+
+
+class CopilotContext(BaseModel):
+    """Where the person is on screen. Keys the copilot does not use are ignored."""
+    model_config = ConfigDict(extra="ignore")
+
+    day: int | None = Field(None, ge=0, le=27)
+    tab: Literal["negotiation", "works", "risk", "approvals"] | None = None
+    selected_work: str | None = None
+    plan_id: str | None = None
+
+
+class CopilotIn(BaseModel):
+    message: str = Field(min_length=1, max_length=500)
+    context: CopilotContext = CopilotContext()

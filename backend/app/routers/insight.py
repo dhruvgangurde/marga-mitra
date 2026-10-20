@@ -1,10 +1,14 @@
+from pathlib import Path
+
 from fastapi import APIRouter, FastAPI, HTTPException, Request
+from pydantic import ValidationError
 
 from backend.app import explain, store
+from backend.app.config import get_settings
 from backend.app.db import session
 from backend.app.deps import in_session
 from backend.app.routers.plans import current_scenario, save_old_way
-from contracts.models import AuditorFlag, Explanation, Plan, PlanVariant, Reason, Scenario, Work
+from contracts.models import AuditorFlag, EvalSummary, Explanation, Plan, PlanVariant, Reason, Scenario, Work
 
 router = APIRouter(tags=["insight"])
 
@@ -62,3 +66,14 @@ def why(request: Request, entity: str) -> Explanation:
         if plan and plan.seed == request.app.state.seed:
             return _why_plan(request.app, scenario, plan)
     raise HTTPException(404, "Unknown work or plan.")
+
+
+@router.get("/evals/summary")
+def evals_summary() -> EvalSummary:
+    path = Path(get_settings().evals_summary_path)
+    if not path.is_file():
+        raise HTTPException(404, "No results yet.")
+    try:
+        return EvalSummary.model_validate_json(path.read_bytes())
+    except (OSError, ValidationError) as e:
+        raise HTTPException(500, "The results file could not be read.") from e
