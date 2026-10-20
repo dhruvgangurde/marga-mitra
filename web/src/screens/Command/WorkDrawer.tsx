@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { dayRange, deptName, errorText, inr, metres, signedInr, timeLabel, workStatusBadge } from '../../api/format';
 import { useExplain, useLedger, useShownPlan, useVerification, useWhatIf, useWorks } from '../../api/hooks';
 import type { WhatIfResult, WorkView } from '../../api/types';
-import { Button, Card, DeptChip, DiffRow, Icon, IconButton, StatusBadge, StepList, TextField } from '../../ui';
+import { Banner, Button, Card, DeptChip, DiffRow, Icon, IconButton, StatusBadge, StepList, TextField } from '../../ui';
 import type { IconName } from '../../ui';
 
 interface DrawerProps {
@@ -32,7 +32,8 @@ function DrawerBody({ view, partner, onClose, onFit }: { view: WorkView; partner
   const [error, setError] = useState<string | undefined>();
   const [result, setResult] = useState<WhatIfResult | null>(null);
   const whatIf = useWhatIf();
-  const explain = useExplain(`work:${work.work_id}`).data;
+  const explainQ = useExplain(work.work_id);
+  const explain = explainQ.data;
   const ledger = useLedger(200).data ?? [];
   const verification = useVerification(work.work_id).data;
   const closeRef = useRef(onClose);
@@ -119,6 +120,17 @@ function DrawerBody({ view, partner, onClose, onFit }: { view: WorkView; partner
       <div className="mm-app-drawer__body">
         <section>
           <h3 className="display-3" style={{ margin: '0 0 12px', color: 'var(--maroon)' }}>Why these dates?</h3>
+          {explainQ.isError ? (
+            <Banner
+              tone="warn"
+              title="Could not load the reasons"
+              action={<Button variant="ghost" onClick={() => void explainQ.refetch()}>Try again</Button>}
+            >
+              {errorText(explainQ.error)}
+            </Banner>
+          ) : explainQ.isLoading ? (
+            <span className="mono" style={{ color: 'var(--ink-3)' }}>Loading{'\u2026'}</span>
+          ) : null}
           <ol className="mm-app-drawer__reasons">
             {(explain?.reasons ?? []).map((r, i) => (
               <li key={i} className="mm-app-drawer__reason">
@@ -132,10 +144,14 @@ function DrawerBody({ view, partner, onClose, onFit }: { view: WorkView; partner
           </ol>
         </section>
 
-        <section>
-          <h3 className="title" style={{ margin: '0 0 12px' }}>Rules check</h3>
-          <StepList steps={(explain?.rules ?? []).map((r) => ({ text: r.name, detail: r.detail, status: r.severity === 'ok' ? 'done' : 'needs' }))} />
-        </section>
+        {explainQ.isError ? null : (
+          <section>
+            <h3 className="title" style={{ margin: '0 0 12px' }}>Rules check</h3>
+            {explainQ.isLoading
+              ? <span className="mono" style={{ color: 'var(--ink-3)' }}>Loading{'\u2026'}</span>
+              : <StepList steps={(explain?.rules ?? []).map((r) => ({ text: r.name, detail: r.detail, status: r.severity === 'ok' ? 'done' : 'needs' }))} />}
+          </section>
+        )}
 
         <Card soft>
           <div className="mm-app-drawer__whatif">

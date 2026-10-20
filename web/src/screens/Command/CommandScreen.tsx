@@ -153,6 +153,21 @@ export default function CommandScreen() {
     }
   });
 
+  // A link to a work that is not in this plan is dropped, with one note.
+  const missing = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedWorkId) {
+      missing.current = null;
+      return;
+    }
+    if (!worksQ.isSuccess || views.some((v) => v.work.work_id === selectedWorkId)) return;
+    if (missing.current === selectedWorkId) return;
+    missing.current = selectedWorkId;
+    setParam('work', null);
+    showToast(`Work ${selectedWorkId} is not in this plan.`, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWorkId, worksQ.isSuccess, views]);
+
   const loading = planQ.isLoading || worksQ.isLoading;
   const failed = planQ.isError || worksQ.isError;
   const tryAgain = () => {
