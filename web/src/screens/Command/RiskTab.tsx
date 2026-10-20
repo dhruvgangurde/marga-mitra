@@ -1,0 +1,124 @@
+import { aqiBand, dayRange, signedInr } from '../../api/format';
+import { useOldWayPlan, usePlanDiff, usePlanMetrics, useRiskWindows, useShownPlan, useWorks } from '../../api/hooks';
+import type { RiskWindow } from '../../api/types';
+import { Banner, Button, Card, DiffRow, Icon, StatusBadge } from '../../ui';
+import type { IconName } from '../../ui';
+
+const EVENT_DETAILS: Record<string, string> = {
+  'EV-DEMO': 'NH-66 service road closed 16:00\u201322:00',
+};
+
+const cardStyle = (gap: number) => ({ display: 'flex', flexDirection: 'column' as const, gap });
+
+function Dot({ color, icon }: { color: string; icon: IconName }) {
+  return <span className="mm-app-risk__dot" style={{ background: color }}><Icon name={icon} size={16} /></span>;
+}
+
+const title = (w: RiskWindow): string => w.label.replace(', ', ' \u00b7 ');
+
+export function RiskTab({ onReview }: { onReview: () => void }) {
+  const windows = useRiskWindows().data ?? [];
+  const plan = useShownPlan().data;
+  const old = useOldWayPlan().data;
+  const views = useWorks(plan?.plan_id).data ?? [];
+  const diff = usePlanDiff(plan?.plan_id, plan?.base_plan_id ?? undefined).data;
+  const planMetrics = usePlanMetrics(plan?.plan_id).data;
+  const oldMetrics = usePlanMetrics(old?.plan_id).data;
+
+  const changes = plan?.base_plan_id ? diff ?? [] : [];
+  const override = windows.some((w) => w.kind === 'rain' && w.source === 'override');
+  const replanned = plan?.status === 'waiting_approval' && Boolean(plan.base_plan_id);
+
+  if (windows.length === 0) {
+    return (
+      <div className="mm-app-risk__empty">
+        <Icon name="rain" size={24} />
+        <p className="body" style={{ margin: 0 }}>No rain, air or event risk in the next 4 weeks.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mm-app-risk">
+      {override ? (
+        <Banner tone="warn" title="Simulated forecast">
+          70 mm of rain in 24 hours on 14{'\u2013'}15 Nov, added for the demo. Live forecasts come from Open-Meteo.
+        </Banner>
+      ) : null}
+
+      {replanned && plan ? (
+        <>
+          <Banner tone="ok" title={`Re-planned in ${(plan.solve_ms / 1000).toFixed(1)} s`}>
+            {`Trench-hours in rain: ${oldMetrics?.trench_hours_in_rain ?? 0} \u2192 ${planMetrics?.trench_hours_in_rain ?? 0}. Waiting for your approval.`}
+          </Banner>
+          <Button variant="primary" block onClick={onReview}>Review and approve</Button>
+        </>
+      ) : null}
+
+      {windows.filter((w) => w.kind === 'rain').map((w) => (
+        <Card key={w.window_id} style={cardStyle(12)}>
+          <div className="mm-app-risk__head">
+            <Dot color="var(--risk-rain)" icon="rain" />
+            <h3 className="title" style={{ margin: 0 }}>{title(w)}</h3>
+            <span style={{ marginLeft: 'auto' }}>
+              <StatusBadge status="warn">{w.source === 'override' ? 'Simulated' : 'Forecast'}</StatusBadge>
+            </span>
+          </div>
+          <p className="small" style={{ margin: 0, color: 'var(--ink-3)' }}>
+            {`${w.value} mm in 24 hours \u00b7 the limit for open trenches is 50 mm`}
+          </p>
+          {changes.length > 0 ? (
+            <>
+              <p className="body-strong" style={{ margin: 0 }}>{changes.length} works on low-lying roads moved out of the rain</p>
+              <ul className="mm-app-risk__diffs">
+                {changes.map((c) => (
+                  <DiffRow
+                    key={c.work_id}
+                    dept={c.dept}
+                    title={c.title}
+                    was={c.from_start != null && c.from_end != null ? dayRange(c.from_start, c.from_end) : undefined}
+                    to={dayRange(c.to_start, c.to_end)}
+                    reason={c.reason}
+                    cost={signedInr(c.cost_delta_inr)}
+                    costDir="up"
+                  />
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </Card>
+      ))}
+
+      {windows.filter((w) => w.kind === 'event').map((w) => {
+        const hit = views.filter((v) => v.assignment
+          && v.assignment.start_day <= w.end_day && v.assignment.end_day >= w.start_day
+          && v.work.segment_ids.some((s) => w.segment_ids.includes(s))).length;
+        return (
+          <Card key={w.window_id} style={cardStyle(8)}>
+            <div className="mm-app-risk__head">
+              <Dot color="var(--risk-event)" icon="flag" />
+              <h3 className="title" style={{ margin: 0 }}>{title(w)}</h3>
+              <span style={{ marginLeft: 'auto' }}><StatusBadge status="ok">No change</StatusBadge></span>
+            </div>
+            <p className="small" style={{ margin: 0, color: 'var(--ink-3)' }}>{EVENT_DETAILS[w.window_id] ?? 'Road closed for the event'}</p>
+            <p className="body" style={{ margin: 0 }}>
+              {hit === 0 ? 'No work is planned on that road that day.' : `${hit} works are planned on that road that day.`}
+            </p>
+          </Card>
+        );
+      })}
+
+      {windows.filter((w) => w.kind === 'air').map((w) => (
+        <Card key={w.window_id} style={cardStyle(8)}>
+          <div className="mm-app-risk__head">
+            <Dot color="var(--risk-air)" icon="wind" />
+            <h3 className="title" style={{ margin: 0 }}>{title(w)}</h3>
+            <span style={{ marginLeft: 'auto' }}><StatusBadge status="warn">Forecast</StatusBadge></span>
+          </div>
+          <p className="small" style={{ margin: 0, color: 'var(--ink-3)' }}>{`AQI ${w.value} \u00b7 ${aqiBand(w.value)}`}</p>
+          <p className="body" style={{ margin: 0 }}>Dusty open cuts are kept out of these days.</p>
+        </Card>
+      ))}
+    </div>
+  );
+}

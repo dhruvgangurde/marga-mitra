@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { compareLabel, dayLabel, metricDelta, TODAY_DAY } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import {
-  useApprovals, useNegotiation, useOldWayPlan, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
+  useApprovals, useForecastOverride, useNegotiation, useOldWayPlan, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
 } from '../../api/hooks';
 import type { Metrics } from '../../api/types';
 import { mapLegendCounts } from '../../map/geo';
@@ -12,12 +12,15 @@ import type { PlanMapHandle } from '../../map/PlanMap';
 import { useLiveEvent } from '../../api/live';
 import { CopilotDock } from './CopilotDock';
 import { NegotiationTab } from './NegotiationTab';
+import { RiskTab } from './RiskTab';
 import { WorkDrawer } from './WorkDrawer';
 import { WorksTab } from './WorksTab';
 import { Button, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toast, Toggle } from '../../ui';
 
 const TABS = ['negotiation', 'works', 'risk', 'approvals'] as const;
 type TabId = (typeof TABS)[number];
+
+const RAIN_TOAST = 'Plan updated. 3 works moved out of the rain window.';
 
 const WEEK_TICKS = ['2 Nov', '9 Nov', '16 Nov', '23 Nov'];
 
@@ -38,9 +41,12 @@ const PART_TWO: Record<TabId, string> = {
 
 export default function CommandScreen() {
   const [params, setParams] = useSearchParams();
-  const [day, setDay] = useState(TODAY_DAY);
+  const [day, setDay] = useState(() => {
+    const asked = Number(params.get('day'));
+    return params.get('day') !== null && asked >= 0 && asked <= 27 ? Math.floor(asked) : TODAY_DAY;
+  });
   const [showOldWay, setShowOldWay] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; view: boolean } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
   const mapRef = useRef<PlanMapHandle>(null);
 
@@ -69,6 +75,28 @@ export default function CommandScreen() {
   const messages = useNegotiation().data ?? [];
   const pending = useApprovals('pending').data ?? [];
 
+  // Only one toast shows at a time; it hides after 6 s.
+  const showToast = (text: string, view: boolean) => {
+    clearTimeout(toastTimer.current);
+    setToast({ text, view });
+    toastTimer.current = setTimeout(() => setToast(null), 6000);
+  };
+  useEffect(() => {
+    if (params.get('demo') === 'rain') showToast(RAIN_TOAST, true);
+    return () => clearTimeout(toastTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useLiveEvent('plan.updated', (data) => {
+    const hasRain = windows.some((w) => w.kind === 'rain' && w.source === 'override');
+    if (data.status === 'waiting_approval' && hasRain) showToast(RAIN_TOAST, true);
+  });
+  const forecast = useForecastOverride();
+  const rainOn = windows.some((w) => w.kind === 'rain' && w.source === 'override');
+  const simulateRain = () => forecast.mutate(
+    { kind: 'rain', start_day: 12, end_day: 13, value: 70, label: 'Heavy rain, 14\u201315 Nov' },
+    { onSuccess: () => { setDay(12); setParam('tab', 'risk'); } },
+  );
+
   useLiveEvent('ui.action', (data) => {
     const args = (data.args ?? {}) as Record<string, unknown>;
     const workId = typeof args.work_id === 'string' ? args.work_id : null;
@@ -90,9 +118,7 @@ export default function CommandScreen() {
         setShowOldWay(Boolean(args.on));
         break;
       case 'show_toast':
-        clearTimeout(toastTimer.current);
-        setToast(String(args.text ?? ''));
-        toastTimer.current = setTimeout(() => setToast(null), 4000);
+        showToast(String(args.text ?? ''), false);
         break;
       default:
         break;
@@ -167,7 +193,15 @@ export default function CommandScreen() {
         </div>
         <span className="mm-app-cmd__divider" aria-hidden="true" />
         <Toggle checked={!showOldWay} onChange={(on) => setShowOldWay(!on)} off="Old way" on="MargaMitra" label="Compare with the old way" />
-        <Button variant="ghost" icon="rain">Simulate rain</Button>
+        <Button
+          variant="ghost"
+          icon="rain"
+          onClick={simulateRain}
+          disabled={rainOn || forecast.isPending}
+          title={rainOn ? 'Rain is already simulated' : undefined}
+        >
+          Simulate rain
+        </Button>
         <Button variant="secondary" icon="refresh">Re-plan</Button>
       </div>
 
@@ -180,6 +214,8 @@ export default function CommandScreen() {
               <NegotiationTab onReview={() => setParam('tab', 'approvals')} />
             ) : tab === 'works' ? (
               <WorksTab />
+            ) : tab === 'risk' ? (
+              <RiskTab onReview={() => setParam('tab', 'approvals')} />
             ) : (
               <p className="body" style={{ margin: 0, color: 'var(--ink-3)' }}>{PART_TWO[tab]}</p>
             )}
@@ -195,7 +231,17 @@ export default function CommandScreen() {
         />
       ) : null}
 
-      <div className="mm-app-cmd__toast">{toast ? <Toast icon="check">{toast}</Toast> : null}</div>
+      <div className="mm-app-cmd__toast">
+        {toast ? (
+          <Toast
+            icon="check"
+            actionLabel={toast.view ? 'View changes' : undefined}
+            onAction={() => { setParam('tab', 'approvals'); setToast(null); }}
+          >
+            {toast.text}
+          </Toast>
+        ) : null}
+      </div>
     </div>
   );
 }
