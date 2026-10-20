@@ -4,6 +4,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
+from contracts.models import Metrics, Plan, WorkChange
+
 
 class Health(BaseModel):
     ok: bool
@@ -68,3 +70,14 @@ class ApprovalDecision(BaseModel):
     decision: Literal["approve", "reject"]
     by: str
     reason: str | None = None
+
+
+class WhatIfIn(BaseModel):
+    work_id: str
+    delay_days: int = Field(ge=1, le=14)
+
+
+class WhatIfResult(BaseModel):
+    plan: Plan
+    diff: list[WorkChange]
+    metrics: Metrics
