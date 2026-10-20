@@ -8,22 +8,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app import ledger, store
 from backend.app.config import get_settings
 from backend.app.db import init_db, session
-from backend.app.deps import build_wiring, with_windows
+from backend.app.deps import build_wiring
 from backend.app.routers import city, health, plans, works
 from backend.app.routers import ledger as ledger_router
-from contracts.models import PlanStatus, Scenario
+from contracts.models import Scenario
 
 
 def load_scenario(app: FastAPI, seed: int) -> Scenario:
     """Generate a test case, store it and save its old-way plan P-OLD-<seed>."""
-    deps = app.state.wiring.deps
     scenario = app.state.wiring.pure_generate(seed)
     with session() as s:
         store.put_scenario(s, scenario)
-    old = deps.naive_plan(with_windows(deps, scenario)).model_copy(
-        update={"plan_id": f"P-OLD-{seed}", "status": PlanStatus.draft})
+    plans.save_old_way(app.state.wiring.deps, scenario)
     with session() as s:
-        store.save_plan(s, old)
         ledger.append(s, "system", "scenario.loaded", f"scenario:{seed}",
                       f"Loaded test case {seed}: {len(scenario.works)} works on {len(scenario.segments)} road segments",
                       {"seed": seed, "works": len(scenario.works), "segments": len(scenario.segments)})

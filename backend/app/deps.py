@@ -94,21 +94,21 @@ async def ledger_append(actor: str, action: str, entity: str, summary: str, payl
 async def emit(event: WsEvent) -> None:
     if event.type == "negotiation.message":
         msg = NegotiationMessage.model_validate(event.data)
-        await asyncio.to_thread(_in_session, store.save_message, msg)
+        await asyncio.to_thread(in_session, store.save_message, msg)
     await hub.broadcast(event)
 
 
-def _in_session(fn: Callable, *args: Any) -> Any:
+def in_session(fn: Callable, *args: Any) -> Any:
     with session() as s:
         return fn(s, *args)
 
 
 async def save_plan(plan: Plan) -> None:
-    await asyncio.to_thread(_in_session, store.save_plan, plan)
+    await asyncio.to_thread(in_session, store.save_plan, plan)
 
 
 async def load_plan(plan_id: str) -> Plan | None:
-    return await asyncio.to_thread(_in_session, store.get_plan, plan_id)
+    return await asyncio.to_thread(in_session, store.get_plan, plan_id)
 
 
 def _db_deps(pure: dict[str, Callable]) -> Deps:
@@ -118,7 +118,7 @@ def _db_deps(pure: dict[str, Callable]) -> Deps:
 
     def compute_risk_windows(scenario: Scenario, mode: str | None = None,
                              overrides: list[RiskWindow] | None = None) -> list[RiskWindow]:
-        stored = _in_session(store.list_windows, scenario.seed)
+        stored = in_session(store.list_windows, scenario.seed)
         return pure["compute_risk_windows"](scenario, mode or get_settings().weather_mode, stored + (overrides or []))
 
     def _new_approval(plan: Plan, result: PolicyResult, run_id: str) -> Approval:
