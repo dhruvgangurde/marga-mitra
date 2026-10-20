@@ -160,3 +160,6 @@
 @media (prefers-reduced-motion: reduce) {
   .mm-app-cmd *, .mm-app-drawer { animation: none !important; transition: none !important; }
 }
+
+/* Final pass */
+.mm-app-cmd__body > * { flex-shrink: 0; }
