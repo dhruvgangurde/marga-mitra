@@ -107,6 +107,43 @@ class LedgerRow(Base):
     hash: Mapped[str]
 
 
+class EvidenceRow(Base):
+    __tablename__ = "evidence"
+    evidence_id: Mapped[str] = mapped_column(primary_key=True)
+    seed: Mapped[int] = mapped_column(index=True)
+    work_id: Mapped[str] = mapped_column(index=True)
+    kind: Mapped[str]
+    rel_path: Mapped[str]
+    phash: Mapped[str]
+    lat: Mapped[float | None]
+    lon: Mapped[float | None]
+    taken_at: Mapped[datetime | None]
+    place_from: Mapped[str]  # "photo", "phone" or "none"
+    time_from: Mapped[str]
+    uploaded_at: Mapped[datetime]
+    data: Mapped[dict[str, Any]]
+
+
+class VerificationRow(Base):
+    __tablename__ = "verifications"
+    verification_id: Mapped[str] = mapped_column(primary_key=True)
+    seed: Mapped[int]
+    work_id: Mapped[str] = mapped_column(index=True)
+    result: Mapped[str]
+    decided_at: Mapped[datetime]
+    data: Mapped[dict[str, Any]]
+
+
+class CitizenReportRow(Base):
+    __tablename__ = "citizen_reports"
+    report_id: Mapped[str] = mapped_column(primary_key=True)
+    seed: Mapped[int]
+    kind: Mapped[str]
+    work_id: Mapped[str | None]
+    created_at: Mapped[datetime]
+    data: Mapped[dict[str, Any]]
+
+
 class IdCounterRow(Base):
     __tablename__ = "id_counters"
     prefix: Mapped[str] = mapped_column(primary_key=True)
