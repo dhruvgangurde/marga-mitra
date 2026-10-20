@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { compareLabel, dayLabel, metricDelta, TODAY_DAY } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import {
-  useApprovals, useForecastOverride, useNegotiation, useOldWayPlan, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
+  useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
 } from '../../api/hooks';
 import type { Metrics } from '../../api/types';
 import { mapLegendCounts } from '../../map/geo';
@@ -40,6 +40,7 @@ export default function CommandScreen() {
     return params.get('day') !== null && asked >= 0 && asked <= 27 ? Math.floor(asked) : TODAY_DAY;
   });
   const [showOldWay, setShowOldWay] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const [toast, setToast] = useState<{ text: string; view: boolean } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
   const mapRef = useRef<PlanMapHandle>(null);
@@ -83,6 +84,31 @@ export default function CommandScreen() {
   useLiveEvent('plan.updated', (data) => {
     const hasRain = windows.some((w) => w.kind === 'rain' && w.source === 'override');
     if (data.status === 'waiting_approval' && hasRain) showToast(RAIN_TOAST, true);
+  });
+  // Play steps the day forward every 700 ms and stops at the last day.
+  useEffect(() => {
+    if (!playing) return undefined;
+    const timer = setInterval(() => setDay((d) => Math.min(27, d + 1)), 700);
+    return () => clearInterval(timer);
+  }, [playing]);
+  useEffect(() => {
+    if (playing && day >= 27) setPlaying(false);
+  }, [playing, day]);
+  const togglePlay = () => {
+    if (playing) {
+      setPlaying(false);
+      return;
+    }
+    if (day >= 27) setDay(0);
+    setPlaying(true);
+  };
+
+  const orchestrate = useOrchestrate();
+  const replan = () => orchestrate.mutate(undefined, {
+    onSuccess: (run) => {
+      if (run.status === 'running') setParam('tab', 'negotiation');
+      else showToast('The plan is up to date.', false);
+    },
   });
   const forecast = useForecastOverride();
   const rainOn = windows.some((w) => w.kind === 'rain' && w.source === 'override');
@@ -178,7 +204,9 @@ export default function CommandScreen() {
           <TimelineSlider
             days={28}
             value={day}
-            onChange={setDay}
+            onChange={(d) => { setPlaying(false); setDay(d); }}
+            playing={playing}
+            onPlay={togglePlay}
             valueLabel={dayLabel(day)}
             range="2–29 Nov"
             risks={windows.map((w) => ({ start: w.start_day, end: w.end_day + 1, kind: w.kind, label: w.label }))}
@@ -196,7 +224,7 @@ export default function CommandScreen() {
         >
           Simulate rain
         </Button>
-        <Button variant="secondary" icon="refresh">Re-plan</Button>
+        <Button variant="secondary" icon="refresh" onClick={replan} disabled={orchestrate.isPending}>Re-plan</Button>
       </div>
 
       <aside className="mm-app-cmd__panel">
@@ -207,7 +235,7 @@ export default function CommandScreen() {
             {tab === 'negotiation' ? (
               <NegotiationTab onReview={() => setParam('tab', 'approvals')} />
             ) : tab === 'works' ? (
-              <WorksTab />
+              <WorksTab onPick={(id) => mapRef.current?.fitWork(id)} />
             ) : tab === 'risk' ? (
               <RiskTab onReview={() => setParam('tab', 'approvals')} />
             ) : (

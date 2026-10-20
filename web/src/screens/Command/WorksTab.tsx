@@ -16,7 +16,7 @@ const MATCHES: Record<Filter, (v: WorkView) => boolean> = {
 
 const startOf = (v: WorkView): number => v.assignment?.start_day ?? v.work.requested_start;
 
-export function WorksTab() {
+export function WorksTab({ onPick }: { onPick?: (workId: string) => void }) {
   const [params] = useSearchParams();
   const [text, setText] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -70,6 +70,7 @@ export function WorksTab() {
                   id={'work-card-' + v.work.work_id}
                   to={linkTo(v.work.work_id)}
                   replace
+                  onClick={() => onPick?.(v.work.work_id)}
                   className="mm-card mm-card--interactive mm-app-works__card"
                   aria-current={selected === v.work.work_id ? 'true' : undefined}
                 >
