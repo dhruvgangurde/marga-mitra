@@ -11,9 +11,12 @@ from functools import cache  # noqa: E402
 
 import psycopg  # noqa: E402
 import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
+from backend.app import deps  # noqa: E402
 from backend.app.db import engine, init_db  # noqa: E402
+from backend.app.main import app  # noqa: E402
 from backend.app.tables import Base  # noqa: E402
 
 
@@ -37,3 +40,11 @@ def db():
     with engine().begin() as c:
         c.execute(text(f"TRUNCATE {', '.join(Base.metadata.tables)} RESTART IDENTITY CASCADE"))
     yield
+
+
+@pytest.fixture
+def client(db, monkeypatch):
+    # always the stand-ins, whatever other tracks have merged
+    monkeypatch.setattr(deps, "real_impl", lambda name: None)
+    with TestClient(app) as c:
+        yield c

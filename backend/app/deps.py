@@ -66,6 +66,11 @@ def day_range(start: date, a: int, b: int) -> str:
     return f"{d0.day} {d0:%b} – {d1.day} {d1:%b}"
 
 
+def with_windows(deps: Deps, scenario: Scenario) -> Scenario:
+    """The scenario with today's risk windows (forecast, overrides, events), as plans, rules and metrics expect."""
+    return scenario.model_copy(update={"risk_windows": deps.compute_risk_windows(scenario)})
+
+
 def _stored_scenario(seed: int, pure_generate: Callable[[int], Scenario]) -> Scenario:
     with session() as s:
         scenario = store.get_scenario(s, seed)
