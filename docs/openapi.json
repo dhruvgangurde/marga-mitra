@@ -1,0 +1,2094 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MargaMitra API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scenario/load": {
+      "post": {
+        "tags": [
+          "city"
+        ],
+        "summary": "Load",
+        "operationId": "load_scenario_load_post",
+        "parameters": [
+          {
+            "name": "seed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Seed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioLoaded"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/segments": {
+      "get": {
+        "tags": [
+          "city"
+        ],
+        "summary": "Segments",
+        "operationId": "segments_segments_get",
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bbox"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Segments Segments Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/departments": {
+      "get": {
+        "tags": [
+          "city"
+        ],
+        "summary": "Departments",
+        "operationId": "departments_departments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Department"
+                  },
+                  "type": "array",
+                  "title": "Response Departments Departments Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/works": {
+      "get": {
+        "tags": [
+          "works"
+        ],
+        "summary": "List Works",
+        "operationId": "list_works_works_get",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkView"
+                  },
+                  "title": "Response List Works Works Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "works"
+        ],
+        "summary": "Add Work",
+        "operationId": "add_work_works_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Work"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Work"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/works/{work_id}": {
+      "get": {
+        "tags": [
+          "works"
+        ],
+        "summary": "Get Work",
+        "operationId": "get_work_works__work_id__get",
+        "parameters": [
+          {
+            "name": "work_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Work Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/naive": {
+      "post": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Naive",
+        "operationId": "naive_plan_naive_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/solver-only": {
+      "post": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Solver Only",
+        "operationId": "solver_only_plan_solver_only_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/orchestrate": {
+      "post": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Orchestrate",
+        "operationId": "orchestrate_plan_orchestrate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plans": {
+      "get": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "List Plans",
+        "operationId": "list_plans_plans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Plan"
+                  },
+                  "type": "array",
+                  "title": "Response List Plans Plans Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/{plan_id}": {
+      "get": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Get Plan",
+        "operationId": "get_plan_plan__plan_id__get",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/{plan_id}/metrics": {
+      "get": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Metrics",
+        "operationId": "metrics_plan__plan_id__metrics_get",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/{plan_id}/diff": {
+      "get": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Diff",
+        "operationId": "diff_plan__plan_id__diff_get",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plan Id"
+            }
+          },
+          {
+            "name": "against",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "naive",
+              "title": "Against"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkChange"
+                  },
+                  "title": "Response Diff Plan  Plan Id  Diff Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Get Run",
+        "operationId": "get_run_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/negotiation": {
+      "get": {
+        "tags": [
+          "plans"
+        ],
+        "summary": "Negotiation",
+        "operationId": "negotiation_negotiation_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NegotiationMessage"
+                  },
+                  "title": "Response Negotiation Negotiation Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/risk/windows": {
+      "get": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Windows",
+        "operationId": "windows_risk_windows_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RiskWindow"
+                  },
+                  "type": "array",
+                  "title": "Response Windows Risk Windows Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/risk/forecast-override": {
+      "post": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Forecast Override",
+        "operationId": "forecast_override_risk_forecast_override_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastOverride"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "post": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Add Event",
+        "operationId": "add_event_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskWindow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/approvals": {
+      "get": {
+        "tags": [
+          "approvals"
+        ],
+        "summary": "List Approvals",
+        "operationId": "list_approvals_approvals_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "approved",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Approval"
+                  },
+                  "title": "Response List Approvals Approvals Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/approvals/{approval_id}": {
+      "post": {
+        "tags": [
+          "approvals"
+        ],
+        "summary": "Decide",
+        "operationId": "decide_approvals__approval_id__post",
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Approval Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ledger": {
+      "get": {
+        "tags": [
+          "record"
+        ],
+        "summary": "Entries",
+        "operationId": "entries_ledger_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before_seq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before Seq"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LedgerEntry"
+                  },
+                  "title": "Response Entries Ledger Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ledger/verify": {
+      "get": {
+        "tags": [
+          "record"
+        ],
+        "summary": "Verify",
+        "operationId": "verify_ledger_verify_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerVerify"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Approval": {
+        "properties": {
+          "approval_id": {
+            "type": "string",
+            "title": "Approval Id"
+          },
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "department_officer",
+              "ward_engineer",
+              "commissioner"
+            ],
+            "title": "Tier"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "approval_id",
+          "plan_id",
+          "run_id",
+          "tier",
+          "status",
+          "summary",
+          "requested_at"
+        ],
+        "title": "Approval"
+      },
+      "ApprovalDecision": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "by": {
+            "type": "string",
+            "title": "By"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "by"
+        ],
+        "title": "ApprovalDecision"
+      },
+      "Assignment": {
+        "properties": {
+          "work_id": {
+            "type": "string",
+            "title": "Work Id"
+          },
+          "start_day": {
+            "type": "integer",
+            "title": "Start Day"
+          },
+          "end_day": {
+            "type": "integer",
+            "title": "End Day"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "shared_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared Group"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "work_id",
+          "start_day",
+          "end_day",
+          "mode"
+        ],
+        "title": "Assignment"
+      },
+      "Department": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon"
+          },
+          "color_token": {
+            "type": "string",
+            "title": "Color Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "color_token"
+        ],
+        "title": "Department"
+      },
+      "Dept": {
+        "type": "string",
+        "enum": [
+          "water",
+          "drainage",
+          "gas",
+          "power",
+          "telecom",
+          "roads"
+        ],
+        "title": "Dept"
+      },
+      "EventIn": {
+        "properties": {
+          "start_day": {
+            "type": "integer",
+            "maximum": 27.0,
+            "minimum": 0.0,
+            "title": "Start Day"
+          },
+          "end_day": {
+            "type": "integer",
+            "maximum": 27.0,
+            "minimum": 0.0,
+            "title": "End Day"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "segment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Segment Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_day",
+          "end_day",
+          "label",
+          "segment_ids"
+        ],
+        "title": "EventIn"
+      },
+      "ForecastOverride": {
+        "properties": {
+          "start_day": {
+            "type": "integer",
+            "maximum": 27.0,
+            "minimum": 0.0,
+            "title": "Start Day"
+          },
+          "end_day": {
+            "type": "integer",
+            "maximum": 27.0,
+            "minimum": 0.0,
+            "title": "End Day"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rain",
+              "air"
+            ],
+            "title": "Kind"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_day",
+          "end_day",
+          "kind",
+          "value"
+        ],
+        "title": "ForecastOverride"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "db": {
+            "type": "boolean",
+            "title": "Db"
+          },
+          "llm_provider": {
+            "type": "string",
+            "title": "Llm Provider"
+          },
+          "weather_mode": {
+            "type": "string",
+            "title": "Weather Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "db",
+          "llm_provider",
+          "weather_mode"
+        ],
+        "title": "Health"
+      },
+      "LedgerEntry": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "title": "Seq"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "entity": {
+            "type": "string",
+            "title": "Entity"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "prev_hash": {
+            "type": "string",
+            "title": "Prev Hash"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seq",
+          "ts",
+          "actor",
+          "action",
+          "entity",
+          "summary",
+          "payload",
+          "prev_hash",
+          "hash"
+        ],
+        "title": "LedgerEntry"
+      },
+      "LedgerVerify": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "entries": {
+            "type": "integer",
+            "title": "Entries"
+          },
+          "first_bad_seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Bad Seq"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok",
+          "entries"
+        ],
+        "title": "LedgerVerify"
+      },
+      "MessageType": {
+        "type": "string",
+        "enum": [
+          "NOTICE",
+          "ACCEPT",
+          "COUNTER",
+          "ESCALATE",
+          "DECISION"
+        ],
+        "title": "MessageType"
+      },
+      "Metrics": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          },
+          "excavations": {
+            "type": "integer",
+            "title": "Excavations"
+          },
+          "digs_per_road": {
+            "type": "number",
+            "title": "Digs Per Road"
+          },
+          "lane_closure_hours": {
+            "type": "number",
+            "title": "Lane Closure Hours"
+          },
+          "trench_hours_in_rain": {
+            "type": "number",
+            "title": "Trench Hours In Rain"
+          },
+          "clashes": {
+            "type": "integer",
+            "title": "Clashes"
+          },
+          "days_late": {
+            "type": "number",
+            "title": "Days Late"
+          },
+          "cost_inr": {
+            "type": "integer",
+            "title": "Cost Inr"
+          },
+          "dust_score": {
+            "type": "number",
+            "title": "Dust Score"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_id",
+          "excavations",
+          "digs_per_road",
+          "lane_closure_hours",
+          "trench_hours_in_rain",
+          "clashes",
+          "days_late",
+          "cost_inr",
+          "dust_score"
+        ],
+        "title": "Metrics"
+      },
+      "Mode": {
+        "type": "string",
+        "enum": [
+          "open_cut",
+          "trenchless"
+        ],
+        "title": "Mode"
+      },
+      "NegotiationMessage": {
+        "properties": {
+          "msg_id": {
+            "type": "string",
+            "title": "Msg Id"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "sender": {
+            "type": "string",
+            "enum": [
+              "water",
+              "drainage",
+              "gas",
+              "power",
+              "telecom",
+              "roads",
+              "coordinator",
+              "solver"
+            ],
+            "title": "Sender"
+          },
+          "recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recipients"
+          },
+          "type": {
+            "$ref": "#/components/schemas/MessageType"
+          },
+          "work_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Work Ids"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/NegotiationOption"
+            },
+            "type": "array",
+            "title": "Options",
+            "default": []
+          },
+          "chosen_option": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Option"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "msg_id",
+          "run_id",
+          "round",
+          "sender",
+          "recipients",
+          "type",
+          "work_ids",
+          "body",
+          "ts"
+        ],
+        "title": "NegotiationMessage"
+      },
+      "NegotiationOption": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "work_id": {
+            "type": "string",
+            "title": "Work Id"
+          },
+          "start_day": {
+            "type": "integer",
+            "title": "Start Day"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "shared_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared Group"
+          },
+          "cost_delta_inr": {
+            "type": "integer",
+            "title": "Cost Delta Inr"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "work_id",
+          "start_day",
+          "mode",
+          "cost_delta_inr"
+        ],
+        "title": "NegotiationOption"
+      },
+      "Plan": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "variant": {
+            "$ref": "#/components/schemas/PlanVariant"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PlanStatus",
+            "default": "draft"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/Assignment"
+            },
+            "type": "array",
+            "title": "Assignments"
+          },
+          "unplanned": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unplanned",
+            "default": []
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes",
+            "default": []
+          },
+          "objective": {
+            "type": "number",
+            "title": "Objective",
+            "default": 0.0
+          },
+          "solve_ms": {
+            "type": "integer",
+            "title": "Solve Ms",
+            "default": 0
+          },
+          "base_plan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Plan Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_id",
+          "seed",
+          "variant",
+          "created_at",
+          "assignments"
+        ],
+        "title": "Plan"
+      },
+      "PlanStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "waiting_approval",
+          "approved",
+          "rejected",
+          "superseded"
+        ],
+        "title": "PlanStatus"
+      },
+      "PlanVariant": {
+        "type": "string",
+        "enum": [
+          "naive",
+          "solver_only",
+          "agents",
+          "orchestrated",
+          "whatif"
+        ],
+        "title": "PlanVariant"
+      },
+      "RiskKind": {
+        "type": "string",
+        "enum": [
+          "rain",
+          "air",
+          "event"
+        ],
+        "title": "RiskKind"
+      },
+      "RiskWindow": {
+        "properties": {
+          "window_id": {
+            "type": "string",
+            "title": "Window Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RiskKind"
+          },
+          "start_day": {
+            "type": "integer",
+            "title": "Start Day"
+          },
+          "end_day": {
+            "type": "integer",
+            "title": "End Day"
+          },
+          "segment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Segment Ids"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "open-meteo",
+              "fixture",
+              "override",
+              "event"
+            ],
+            "title": "Source"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "window_id",
+          "kind",
+          "start_day",
+          "end_day",
+          "segment_ids",
+          "value",
+          "source",
+          "label"
+        ],
+        "title": "RiskWindow"
+      },
+      "RunResult": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "waiting_approval",
+              "approved",
+              "rejected",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Metrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "RunResult"
+      },
+      "ScenarioLoaded": {
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "works": {
+            "type": "integer",
+            "title": "Works"
+          },
+          "segments": {
+            "type": "integer",
+            "title": "Segments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seed",
+          "start_date",
+          "works",
+          "segments"
+        ],
+        "title": "ScenarioLoaded"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Work": {
+        "properties": {
+          "work_id": {
+            "type": "string",
+            "title": "Work Id"
+          },
+          "dept": {
+            "$ref": "#/components/schemas/Dept"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "road_name": {
+            "type": "string",
+            "title": "Road Name"
+          },
+          "segment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Segment Ids"
+          },
+          "length_m": {
+            "type": "number",
+            "title": "Length M"
+          },
+          "requested_start": {
+            "type": "integer",
+            "title": "Requested Start"
+          },
+          "earliest_start": {
+            "type": "integer",
+            "title": "Earliest Start"
+          },
+          "latest_end": {
+            "type": "integer",
+            "title": "Latest End"
+          },
+          "modes": {
+            "items": {
+              "$ref": "#/components/schemas/WorkModeOption"
+            },
+            "type": "array",
+            "title": "Modes"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "default": 3
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Depends On",
+            "default": []
+          },
+          "deposit_inr": {
+            "type": "integer",
+            "title": "Deposit Inr"
+          },
+          "is_emergency": {
+            "type": "boolean",
+            "title": "Is Emergency",
+            "default": false
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "work_id",
+          "dept",
+          "title",
+          "road_name",
+          "segment_ids",
+          "length_m",
+          "requested_start",
+          "earliest_start",
+          "latest_end",
+          "modes",
+          "deposit_inr"
+        ],
+        "title": "Work"
+      },
+      "WorkChange": {
+        "properties": {
+          "work_id": {
+            "type": "string",
+            "title": "Work Id"
+          },
+          "dept": {
+            "$ref": "#/components/schemas/Dept"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "from_start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Start"
+          },
+          "from_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From End"
+          },
+          "to_start": {
+            "type": "integer",
+            "title": "To Start"
+          },
+          "to_end": {
+            "type": "integer",
+            "title": "To End"
+          },
+          "mode_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Mode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode_to": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "shared_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared Group"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "cost_delta_inr": {
+            "type": "integer",
+            "title": "Cost Delta Inr"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "work_id",
+          "dept",
+          "title",
+          "from_start",
+          "from_end",
+          "to_start",
+          "to_end",
+          "mode_from",
+          "mode_to",
+          "reason",
+          "cost_delta_inr"
+        ],
+        "title": "WorkChange"
+      },
+      "WorkModeOption": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "duration_days": {
+            "type": "integer",
+            "title": "Duration Days"
+          },
+          "cost_inr": {
+            "type": "integer",
+            "title": "Cost Inr"
+          },
+          "lanes_closed": {
+            "type": "integer",
+            "title": "Lanes Closed"
+          },
+          "dust": {
+            "type": "number",
+            "title": "Dust"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mode",
+          "duration_days",
+          "cost_inr",
+          "lanes_closed",
+          "dust"
+        ],
+        "title": "WorkModeOption"
+      },
+      "WorkStatus": {
+        "type": "string",
+        "enum": [
+          "planned",
+          "moved",
+          "shared",
+          "digging",
+          "done",
+          "verified",
+          "held",
+          "emergency"
+        ],
+        "title": "WorkStatus"
+      },
+      "WorkView": {
+        "properties": {
+          "work": {
+            "$ref": "#/components/schemas/Work"
+          },
+          "assignment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Assignment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkStatus"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "work",
+          "status"
+        ],
+        "title": "WorkView"
+      }
+    }
+  }
+}
