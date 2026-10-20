@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
-import { ApiError } from '../../api/client';
 import { useEvalsSummary } from '../../api/hooks';
-import { compareLabel, metricDelta } from '../../api/format';
+import { compareLabel, dateTimeLabel, inr, metricDelta } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import type { EvalRow, EvalSummary, Stat } from '../../api/types';
-import { Button, Card, DataTable, EmptyState, LoadError, MetricTile, Skeleton, Tag } from '../../ui';
+import { Button, Card, DataTable, EmptyState, isMissing, LoadError, MetricTile, Skeleton, Tag } from '../../ui';
 
 type Variant = EvalRow['variant'];
 type StatKey = 'digs_per_road' | 'lane_closure_hours' | 'trench_hours_in_rain' | 'clashes' | 'days_late';
@@ -49,6 +48,7 @@ const TABLE_COLUMNS = [
   { key: 'rain', label: 'Trench-hours in rain', num: true, mono: true },
   { key: 'late', label: 'Days late', num: true, mono: true },
   { key: 'fake', label: 'Fake repairs caught', num: true, mono: true },
+  { key: 'cost', label: 'Cost', num: true, mono: true },
 ];
 
 function Swatch({ fill }: { fill: string }) {
@@ -166,7 +166,11 @@ function Report({ summary }: { summary: EvalSummary }) {
                 lane: range(r.lane_closure_hours, whole),
                 rain: range(r.trench_hours_in_rain, whole),
                 late: trimmed(r.days_late.median),
-                fake: variant === 'full' ? `${summary.fake_repairs_caught} of ${summary.fake_repairs_total}` : '—',
+                fake: variant === 'full' && summary.fake_repairs_total > 0
+                  ? `${summary.fake_repairs_caught} of ${summary.fake_repairs_total}`
+                  : '—',
+                // The agents' shared trenches lower the cost, not the digs per road, so this column shows what they add.
+                cost: inr(r.cost_inr.median),
               }] : [];
             })}
           />
@@ -187,6 +191,7 @@ function Report({ summary }: { summary: EvalSummary }) {
             </Card>
           ))}
         </div>
+        <p className="small" style={{ margin: 0, color: 'var(--ink-3)' }}>{`Results from ${dateTimeLabel(summary.generated_at)}.`}</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 16 }}>
           <Button variant="primary" as="a" href="/command">Open command centre</Button>
           <Button icon="eye" as="a" href="/record">See the public record</Button>
@@ -202,7 +207,7 @@ const ready = (s: EvalSummary | undefined): s is EvalSummary =>
 export default function ImpactScreen() {
   const evals = useEvalsSummary();
   // A summary the server does not have yet comes back as not found.
-  const missing = evals.error instanceof ApiError && evals.error.status === 404;
+  const missing = isMissing(evals.error);
   let body: ReactNode;
   if (evals.isLoading) {
     body = [0, 1, 2, 3].map((i) => <Skeleton key={i} height={120} />);

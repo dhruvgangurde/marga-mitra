@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ApiError, USE_MOCKS } from '../../api/client';
 import { useConfirmRoad, useEvidence, useUploadEvidence, useWork, useWorks } from '../../api/hooks';
+import { useLiveEvent } from '../../api/live';
 import { dayLabel } from '../../api/format';
-import type { Evidence } from '../../api/types';
+import type { Evidence, LedgerEntry } from '../../api/types';
 import {
-  Banner, Button, Card, DeptChip, EmptyState, FocusTarget, LoadError, PhoneScreen, PhotoSlot, Skeleton, StatusBadge,
+  Banner, Button, Card, DeptChip, EmptyState, FocusTarget, LoadError, PhoneScreen, photoProblem, PhotoSlot, preparePhoto, Skeleton,
+  StatusBadge,
 } from '../../ui';
+import type { Problem } from '../../ui';
 
 type Stage = 'asking' | 'notyet' | 'sent-yes' | 'sent-notyet';
 type Place = { lat: number; lon: number };
@@ -60,7 +63,7 @@ export default function ConfirmScreen() {
   const [stage, setStage] = useState<Stage>(() => startStage(search.get('answer')));
   const [problems, setProblems] = useState<string[]>([PROBLEMS[0]]);
   const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [problem, setProblem] = useState<Problem | null>(null);
   const [sending, setSending] = useState(false);
   // Only an answer sent on this page moves focus; the ?answer= screenshot states leave it alone.
   const [justSent, setJustSent] = useState(false);
@@ -69,16 +72,25 @@ export default function ConfirmScreen() {
 
   useEffect(() => () => urls.current.forEach((url) => URL.revokeObjectURL(url)), []);
 
+  // The crew's after photo shows here as soon as it is added.
+  const refetchEvidence = evidenceQuery.refetch;
+  useLiveEvent('ledger.appended', (data) => {
+    const entry = data as unknown as LedgerEntry;
+    if (entry.action === 'evidence.added' && entry.entity === `work:${workId}`) void refetchEvidence();
+  });
+
   const answered = stage === 'sent-yes' || stage === 'sent-notyet';
   const badge = answered
     ? <StatusBadge status="ok">Answered</StatusBadge>
     : <StatusBadge status="pending">1 question</StatusBadge>;
 
-  if (!view) {
+  // The crew photos load before the page shows, so nothing jumps when they arrive.
+  const loading = workQuery.isLoading || evidenceQuery.isLoading;
+  if (!view || loading) {
     const unknown = workQuery.error instanceof ApiError && workQuery.error.status === 404;
     return (
-      <PhoneScreen title="Your road" backTo="/" badge={badge} busy={workQuery.isLoading}>
-        {workQuery.isLoading ? (
+      <PhoneScreen title="Your road" backTo="/" badge={badge} busy={loading}>
+        {loading ? (
           <>
             <Skeleton height={96} />
             <Skeleton height={240} />
@@ -104,13 +116,14 @@ export default function ConfirmScreen() {
   const latest = (kind: Evidence['kind']) => evidence.filter((e) => e.kind === kind).at(-1);
 
   async function send(answer: 'yes' | 'notyet') {
-    setFailed(false);
+    setProblem(null);
     setSending(true);
     try {
       const place = await quickPosition();
       if (answer === 'notyet' && photo) {
+        const prepared = await preparePhoto(photo.file);
         await upload.mutateAsync({
-          workId, kind: 'citizen', photo: photo.file, lat: place?.lat, lon: place?.lon,
+          workId, kind: 'citizen', photo: prepared.photo, lat: place?.lat, lon: place?.lon,
           takenAt: new Date(photo.file.lastModified).toISOString(),
         });
       }
@@ -119,8 +132,8 @@ export default function ConfirmScreen() {
       });
       setJustSent(true);
       setStage(answer === 'yes' ? 'sent-yes' : 'sent-notyet');
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setProblem(photoProblem(error));
     } finally {
       setSending(false);
     }
@@ -154,7 +167,7 @@ export default function ConfirmScreen() {
 
       <h2 className="display-3" style={{ margin: '8px 0 0', color: 'var(--maroon)' }}>Is the road outside your house restored?</h2>
 
-      {failed ? <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner> : null}
+      {problem ? <Banner tone="danger" title={problem.title}>{problem.text}</Banner> : null}
 
       {stage === 'asking' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

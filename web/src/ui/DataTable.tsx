@@ -6,7 +6,7 @@ export interface DataTableProps { columns: { key: string; label: string; num?: b
 export function DataTable({ columns, rows, caption }: DataTableProps) {
   return (
     <table className="mm-table">
-      {caption ? <caption className="mm-overline" style={{ textAlign: 'left', padding: '0 0 6px' }}>{caption}</caption> : null}
+      {caption ? <caption className="mm-overline" style={{ textAlign: 'left', padding: '12px 16px 6px' }}>{caption}</caption> : null}
       <thead>
         <tr>
           {columns.map((c) => <th key={c.key} scope="col" className={c.num ? 'mm-num' : undefined}>{c.label}</th>)}

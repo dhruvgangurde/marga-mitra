@@ -60,3 +60,6 @@ export type { FocusTargetProps } from './FocusTarget';
 export { DEPTS } from './depts';
 export type { Dept } from './depts';
 export type { IconName } from './icons';
+export { isMissing, problemText, PROBLEM_CASES } from './problem';
+export type { Problem } from './problem';
+export { preparePhoto, photoProblem } from './photoFile';
