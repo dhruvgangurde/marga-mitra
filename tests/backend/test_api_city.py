@@ -1,6 +1,6 @@
 from backend.app.routers.works import work_status
-from contracts.fakes import tiny_scenario
-from contracts.models import Assignment, Mode, WorkStatus
+from contracts.fakes import now, tiny_scenario
+from contracts.models import Assignment, Mode, Verification, WorkStatus
 
 
 def _at(start: int, mode: Mode = Mode.open_cut, group: str | None = None) -> Assignment:
@@ -58,6 +58,23 @@ def test_work_status_order():
     assert work_status(w, _at(11), 20) == WorkStatus.moved
     assert work_status(w, _at(10), 20) == WorkStatus.planned
     assert work_status(w, None, 8) == WorkStatus.planned
+
+
+def test_work_status_with_a_check():
+    w = tiny_scenario(1).works[1]
+    digging = _at(8)
+
+    def check(result: str) -> Verification:
+        return Verification(verification_id="V-0001", work_id="T-001", result=result, checks=[], deposit_inr=100000,
+                            deposit_released=result == "verified", decided_at=now())
+
+    emergency = w.model_copy(update={"is_emergency": True})
+    assert work_status(emergency, digging, 8, check("verified")) == WorkStatus.emergency
+    assert work_status(w.model_copy(update={"done": True}), digging, 8, check("verified")) == WorkStatus.verified
+    assert work_status(w.model_copy(update={"done": True}), digging, 8, check("held")) == WorkStatus.held
+    assert work_status(w, digging, 8, check("held")) == WorkStatus.held
+    assert work_status(w, digging, 8, check("inspect")) == WorkStatus.digging
+    assert work_status(w, digging, 8, check("pending")) == WorkStatus.digging
 
 
 def test_add_work(client):

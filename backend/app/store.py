@@ -5,10 +5,12 @@ from typing import Any
 from geoalchemy2.shape import from_shape
 from shapely.geometry import LineString
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
 from backend.app.tables import (
     ApprovalRow,
+    CitizenReportRow,
     EvidenceRow,
     NegotiationMessageRow,
     PlanRow,
@@ -16,9 +18,21 @@ from backend.app.tables import (
     RunRow,
     ScenarioRow,
     SegmentRow,
+    VerificationRow,
     WorkRow,
 )
-from contracts.models import Approval, Evidence, NegotiationMessage, Plan, RiskWindow, RunResult, Scenario, Work
+from contracts.models import (
+    Approval,
+    CitizenReport,
+    Evidence,
+    NegotiationMessage,
+    Plan,
+    RiskWindow,
+    RunResult,
+    Scenario,
+    Verification,
+    Work,
+)
 
 # clock_timestamp(): real server time with microseconds, so rows saved in one transaction still sort
 _NOW = func.clock_timestamp
@@ -223,3 +237,44 @@ def list_evidence(s: Session, seed: int, work_id: str) -> list[Evidence]:
 def evidence_of_others(s: Session, seed: int, work_id: str) -> list[Evidence]:
     """Every photo of the other works in this test case, oldest first."""
     return _evidence(s, EvidenceRow.seed == seed, EvidenceRow.work_id != work_id)
+
+
+def evidence_path(s: Session, evidence_id: str) -> str | None:
+    return s.scalar(select(EvidenceRow.rel_path).where(EvidenceRow.evidence_id == evidence_id))
+
+
+# ---------- checks and resident answers ----------
+def add_verification(s: Session, seed: int, v: Verification) -> None:
+    s.add(VerificationRow(verification_id=v.verification_id, seed=seed, work_id=v.work_id, result=v.result,
+                          decided_at=v.decided_at, data=v.model_dump(mode="json")))
+    s.flush()
+
+
+def _newest_verifications(seed: int) -> Any:
+    return (select(VerificationRow.work_id, VerificationRow.data).where(VerificationRow.seed == seed)
+            .ext(distinct_on(VerificationRow.work_id))
+            .order_by(VerificationRow.work_id, VerificationRow.decided_at.desc(), VerificationRow.verification_id.desc()))
+
+
+def latest_verification(s: Session, seed: int, work_id: str) -> Verification | None:
+    row = s.execute(_newest_verifications(seed).where(VerificationRow.work_id == work_id)).first()
+    return Verification.model_validate(row.data) if row else None
+
+
+def latest_verifications(s: Session, seed: int) -> dict[str, Verification]:
+    """The newest check of every work that has one."""
+    return {r.work_id: Verification.model_validate(r.data) for r in s.execute(_newest_verifications(seed))}
+
+
+def add_report(s: Session, seed: int, report: CitizenReport) -> None:
+    s.add(CitizenReportRow(report_id=report.report_id, seed=seed, kind=report.kind, work_id=report.work_id,
+                           created_at=report.created_at, data=report.model_dump(mode="json")))
+    s.flush()
+
+
+def confirmations(s: Session, seed: int, work_id: str) -> list[CitizenReport]:
+    """A work's resident answers, oldest first."""
+    q = (select(CitizenReportRow.data)
+         .where(CitizenReportRow.seed == seed, CitizenReportRow.kind == "confirmation", CitizenReportRow.work_id == work_id)
+         .order_by(CitizenReportRow.created_at, CitizenReportRow.report_id))
+    return [CitizenReport.model_validate(d) for d in s.scalars(q)]

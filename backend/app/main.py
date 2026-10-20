@@ -10,7 +10,7 @@ from backend.app import ledger, store
 from backend.app.config import get_settings
 from backend.app.db import init_db, session
 from backend.app.deps import build_wiring
-from backend.app.routers import approvals, city, evidence, files, health, live, plans, risk, works
+from backend.app.routers import approvals, city, evidence, files, health, live, plans, reports, risk, works
 from backend.app.routers import ledger as ledger_router
 from backend.app.runstore import open_run_store
 from contracts.models import Scenario
@@ -51,5 +51,5 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="MargaMitra API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_list, allow_methods=["*"], allow_headers=["*"])
-for r in (health, city, works, plans, risk, approvals, ledger_router, live, files, evidence):
+for r in (health, city, works, plans, risk, approvals, ledger_router, live, files, evidence, reports):
     app.include_router(r.router)
