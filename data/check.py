@@ -5,15 +5,17 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from collections import Counter
+from collections.abc import Iterable
 
 from contracts import costs, rules
 from contracts.models import Dept, Mode, Scenario, Work
 from data.demo import _TABLE, DEMO_ROADS, PROTECTED_ROADS, demo_scenario
 from data.elevation import ELEVATIONS
 from data.osm_import import SNAPSHOT
-from data.scenario import _old_way
+from data.scenario import _old_way, generate_scenario
 
 Line = tuple[str, str]  # status "PASS", "WARN" or "FAIL", and one plain sentence
 
@@ -238,10 +240,73 @@ def story_lines(scenario: Scenario) -> list[Line]:
     return lines
 
 
+def _n(count: int, one: str, many: str) -> str:
+    return f"{count} {one if count == 1 else many}"
+
+
+def seed_lines(seeds: Iterable[int], table: bool = False) -> list[Line]:
+    seeds = list(seeds)
+    lines: list[Line] = []
+    stats = []
+    for seed in seeds:
+        scenario = generate_scenario(seed)
+        plan = _old_way(scenario)
+        n_works = len(scenario.works)
+        n_depts = len({w.dept for w in scenario.works})
+        clashes = rules.clash_count(scenario, plan)
+        groups = len(scenario.parallel_groups)
+        protected = {s.segment_id for s in scenario.segments if s.protected_until}
+        on_protected = sum(1 for w in scenario.works if set(w.segment_ids) & protected)
+        low = {s.segment_id for s in scenario.segments if s.low_lying}
+        low_works = sum(
+            1 for w in scenario.works
+            if not w.done and any(m.mode == Mode.open_cut for m in w.modes) and set(w.segment_ids) & low
+        )
+        stats.append((n_works, clashes, groups, low_works))
+
+        problems = []
+        if not 14 <= n_works <= 20:
+            problems.append(f"{n_works} works, not 14 to 20")
+        if n_depts < 6:
+            problems.append(f"{n_depts} departments, not 6")
+        if clashes < 3:
+            problems.append(f"{clashes} clashes, fewer than 3")
+        if groups == 0:
+            problems.append("no shared trench")
+        if on_protected:
+            problems.append(_n(on_protected, "work", "works") + " on a protected segment")
+        if problems:
+            lines.append(("FAIL", f"test case {seed}: " + "; ".join(problems) + "."))
+            continue
+        if low_works == 0:
+            lines.append(("WARN", f"test case {seed}: no open trench on a low-lying road, so the rain spell changes nothing there."))
+        elif table:
+            lines.append((
+                "PASS",
+                f"test case {seed}: {_n(n_works, 'work', 'works')}, {_n(n_depts, 'department', 'departments')}, "
+                f"{_n(clashes, 'clash', 'clashes')}, {_n(groups, 'shared trench', 'shared trenches')}, "
+                f"{_n(low_works, 'low-lying work', 'low-lying works')}",
+            ))
+
+    if stats:
+        works_, clashes_, groups_, low_ = (sorted(col) for col in zip(*stats, strict=True))
+        middle = clashes_[len(clashes_) // 2]
+        lines.append((
+            "PASS",
+            f"Test cases {seeds[0]}\u2013{seeds[-1]}: {works_[0]}\u2013{works_[-1]} works, "
+            f"clashes {clashes_[0]}\u2013{clashes_[-1]} (middle {middle}), "
+            f"shared trenches {groups_[0]}\u2013{groups_[-1]}, low-lying works {low_[0]}\u2013{low_[-1]}",
+        ))
+    return lines
+
+
 def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Check that the demo story can still happen.")
+    parser.add_argument("--table", action="store_true", help="print one line for every test case")
+    args = parser.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     scenario = demo_scenario()
-    lines = road_lines(scenario) + story_lines(scenario)
+    lines = road_lines(scenario) + story_lines(scenario) + seed_lines(range(2, 51), table=args.table)
     show(lines)
     counts = Counter(status for status, _ in lines)
     print(f"{counts['PASS']} passed, {counts['WARN']} warnings, {counts['FAIL']} failed")
