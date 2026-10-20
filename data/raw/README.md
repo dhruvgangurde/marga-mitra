@@ -1,4 +1,4 @@
-﻿# Data snapshots
+# Data snapshots
 
 Both files are committed so that nothing needs the internet at run time or in tests.
 Only the two `--fetch` commands touch the network, and a person runs them.
@@ -18,3 +18,11 @@ Only the two `--fetch` commands touch the network, and a person runs them.
 - **Refresh it:** `python -m data.elevation --fetch` (about 20 small requests; it retries when the service is busy).
 - **When:** after every refresh of `osm_surathkal.json`.
 - **Source and licence:** Elevations from the Open-Meteo elevation API (CC BY 4.0).
+
+## Checks
+
+`python -m data.check` proves that the demo story can still happen on the real roads: the demo roads and works, the old way's clashes, the shared trench, the procession, the simulated rain, the demo forecast, and what test cases 2 to 50 contain. A FAIL stops the demo story, so fix it before anything else. A WARN is only a note. Add `--table` to see every test case and `--web PATH` to check the web export.
+
+## weather_cache.json
+
+The last live forecast, kept for 3 hours and never committed. Delete it to force a fresh fetch.

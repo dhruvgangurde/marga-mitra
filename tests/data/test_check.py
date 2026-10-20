@@ -1,6 +1,11 @@
+import subprocess
+import sys
+from pathlib import Path
+
 from contracts.models import Mode
 from data import check
 from data.demo import DEMO_ROADS, demo_scenario
+from data.scenario import generate_scenario
 
 
 def test_main_passes(need_snapshot, capsys):
@@ -57,3 +62,22 @@ def test_seed_lines_summary():
 def test_seed_lines_table():
     lines = check.seed_lines([2], table=True)
     assert any(text.startswith("test case 2:") for _, text in lines)
+
+
+def test_export_is_up_to_date(need_snapshot, tmp_path):
+    out = tmp_path / "scenario.json"
+    root = Path(__file__).resolve().parents[2]
+    subprocess.run([sys.executable, "-m", "data.demo", "--out", str(out)], cwd=root, check=True, capture_output=True)
+    assert check.export_line(out) == ("PASS", "the web export is up to date")
+
+
+def test_export_from_another_seed_is_out_of_date(need_snapshot, tmp_path):
+    out = tmp_path / "scenario.json"
+    out.write_text(generate_scenario(2).model_dump_json(), encoding="utf-8")
+    status, text = check.export_line(out)
+    assert status == "FAIL" and text.startswith("the web export is out of date: run python -m data.demo --out")
+
+
+def test_missing_export(tmp_path):
+    out = tmp_path / "none.json"
+    assert check.export_line(out) == ("FAIL", f"no web export at {out}")

@@ -9,6 +9,7 @@ import argparse
 import sys
 from collections import Counter
 from collections.abc import Iterable
+from pathlib import Path
 
 from contracts import costs, rules
 from contracts.models import Dept, Mode, Scenario, Work
@@ -300,13 +301,28 @@ def seed_lines(seeds: Iterable[int], table: bool = False) -> list[Line]:
     return lines
 
 
+def export_line(path: Path) -> Line:
+    if not path.exists():
+        return ("FAIL", f"no web export at {path}")
+    try:
+        exported = Scenario.model_validate_json(path.read_text(encoding="utf-8-sig"))
+    except ValueError:
+        exported = None
+    if exported is not None and exported == demo_scenario():
+        return ("PASS", "the web export is up to date")
+    return ("FAIL", f"the web export is out of date: run python -m data.demo --out {path}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check that the demo story can still happen.")
     parser.add_argument("--table", action="store_true", help="print one line for every test case")
+    parser.add_argument("--web", help="also check this web export of the demo scenario (web/src/mocks/scenario.json)")
     args = parser.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     scenario = demo_scenario()
     lines = road_lines(scenario) + story_lines(scenario) + seed_lines(range(2, 51), table=args.table)
+    if args.web:
+        lines.append(export_line(Path(args.web)))
     show(lines)
     counts = Counter(status for status, _ in lines)
     print(f"{counts['PASS']} passed, {counts['WARN']} warnings, {counts['FAIL']} failed")
