@@ -1,6 +1,7 @@
 from datetime import datetime
 from itertools import combinations
 
+from backend.app.verify.decide import distance_m
 from backend.app.verify.exif import INDIA, read_photo_facts
 from backend.app.verify.phash import distance, fingerprint
 from contracts.fakes import tiny_scenario
@@ -13,6 +14,14 @@ def _print(img) -> str:
 
 def test_site_point():
     assert site_point(tiny_scenario(1), "W-001", 12) == (13.010108, 74.793)
+
+
+def test_site_point_lies_on_a_bent_road():
+    s = tiny_scenario(1)
+    bent = [(74.792, 13.01), (74.795, 13.01), (74.795, 13.011)]  # an L: the average of its ends is off the road
+    s.segments[1] = s.segments[1].model_copy(update={"coords": bent})
+    lat, lon = site_point(s, "W-001", 0)
+    assert distance_m((lon, lat), [bent]) < 0.5
 
 
 def test_with_facts_round_trips():

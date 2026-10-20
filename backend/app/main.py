@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -14,6 +15,10 @@ from backend.app.routers import approvals, city, evidence, files, health, live, 
 from backend.app.routers import ledger as ledger_router
 from backend.app.runstore import open_run_store
 from contracts.models import Scenario
+
+# uvicorn shows only its own loggers; this shows the app's INFO lines (run store, stand-ins) and keeps httpx's per-request lines quiet
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(name)s: %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def load_scenario(app: FastAPI, seed: int) -> Scenario:

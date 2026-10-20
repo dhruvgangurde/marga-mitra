@@ -12,10 +12,13 @@ async def open_run_store(stack: contextlib.AsyncExitStack, wiring: Any) -> str:
     """Give the real workflow a Postgres checkpointer; returns "none", "postgres" or "memory"."""
     if getattr(wiring.start_run, "__module__", "") != "agents.workflow":
         return "none"  # a stand-in keeps no paused runs
+    from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
     from agents import workflow
 
+    # registered first, so it runs after the connection closes: no later run uses a closed saver
+    stack.callback(workflow.set_checkpointer, InMemorySaver())
     url = get_settings().database_url.replace("postgresql+psycopg://", "postgresql://", 1)
     # Windows: psycopg's async mode refuses the Proactor event loop; uvicorn uses the selector loop only with --reload, so plain uvicorn on Windows falls back to memory.
     try:

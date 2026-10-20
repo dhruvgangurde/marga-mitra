@@ -60,6 +60,24 @@ def test_approval_counts_when_the_run_has_stopped(client, monkeypatch):
     assert client.post(f"/approvals/{aid}", json={"decision": "approve", "by": "ward_engineer"}).status_code == 409
 
 
+def test_rejection_counts_when_the_run_has_stopped(client, monkeypatch):
+    client.post("/plan/orchestrate")
+    aid = wait_for_run(client, "RUN-0001")["approval_id"]
+
+    async def stopped(*args, **kwargs):
+        raise RuntimeError("Run RUN-0001 is not waiting for approval.")
+
+    monkeypatch.setattr(client.app.state.wiring, "resume_run", stopped)
+    reason = "The gas crew is not free that week"
+    r = client.post(f"/approvals/{aid}", json={"decision": "reject", "by": "ward_engineer", "reason": reason})
+    assert r.status_code == 200
+    assert (r.json()["status"], r.json()["note"]) == ("rejected", "Saved without the planning run, which had stopped.")
+    assert client.get("/plan/P-FAKE").json()["status"] == "rejected"
+    newest = client.get("/ledger", params={"limit": 1}).json()[0]
+    assert (newest["action"], newest["summary"], newest["payload"]["reason"]) == (
+        "plan.rejected", f"Rejected the plan for 2–29 Nov: {reason}", reason)
+
+
 def test_record_pages_and_check(client):
     client.post("/events", json=PROCESSION)
     assert [e["seq"] for e in client.get("/ledger", params={"limit": 1}).json()] == [2]
