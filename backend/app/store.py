@@ -153,6 +153,13 @@ def newest_run_id(s: Session, seed: int) -> str | None:
                     .order_by(RunRow.created_at.desc(), RunRow.run_id.desc()).limit(1))
 
 
+def run_of_plan(s: Session, plan_id: str) -> RunResult | None:
+    """The newest run whose result is this plan."""
+    data = s.scalar(select(RunRow.data).where(RunRow.data["plan_id"].astext == plan_id)
+                    .order_by(RunRow.created_at.desc(), RunRow.run_id.desc()).limit(1))
+    return RunResult.model_validate(data) if data else None
+
+
 def save_message(s: Session, msg: NegotiationMessage) -> None:
     s.merge(NegotiationMessageRow(run_id=msg.run_id, msg_id=msg.msg_id, round=msg.round, ts=msg.ts,
                                   data=msg.model_dump(mode="json")))
@@ -305,6 +312,10 @@ def list_flags(s: Session, seed: int) -> list[AuditorFlag]:
     q = (select(AuditorFlagRow.data).where(AuditorFlagRow.seed == seed)
          .order_by(AuditorFlagRow.created_at.desc(), AuditorFlagRow.flag_id.desc()))
     return [AuditorFlag.model_validate(d) for d in s.scalars(q)]
+
+
+def seqs_for(s: Session, entities: list[str]) -> list[int]:
+    return list(s.scalars(select(LedgerRow.seq).where(LedgerRow.entity.in_(entities)).order_by(LedgerRow.seq)))
 
 
 def entries_by_action(s: Session, actions: list[str]) -> list[LedgerEntry]:

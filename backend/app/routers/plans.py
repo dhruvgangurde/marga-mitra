@@ -38,6 +38,12 @@ def save_old_way(deps: Deps, scenario: Scenario) -> Plan:
     return _saved_draft(deps.naive_plan(with_windows(deps, scenario)), f"P-OLD-{scenario.seed}")
 
 
+def current_scenario(app: FastAPI) -> Scenario:
+    """The stored test case with today's risk windows, as plans, rules and metrics see it."""
+    deps = app.state.wiring.deps
+    return with_windows(deps, deps.generate_scenario(app.state.seed))
+
+
 def _deps_and_scenario(request: Request, seed: int | None = None) -> tuple[Deps, Scenario]:
     deps = request.app.state.wiring.deps
     return deps, with_windows(deps, deps.generate_scenario(seed or request.app.state.seed))
