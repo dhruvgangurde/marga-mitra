@@ -1,4 +1,4 @@
-﻿import json
+import json
 from datetime import date
 from pathlib import Path
 
@@ -9,7 +9,7 @@ from contracts.models import RiskWindow
 from data.demo import demo_scenario
 from risk import weather
 from risk.weather import DayWeather
-from risk.windows import compute_risk_windows, days_label
+from risk.windows import compute_risk_windows, daily_summary, days_label, main
 
 OV1 = RiskWindow(window_id="OV-1", kind="rain", start_day=12, end_day=13, segment_ids=[], value=70.0,
                  source="override", label="Heavy rain, 14–15 Nov")
@@ -94,3 +94,18 @@ def test_live_mode(demo, monkeypatch, tmp_path):
     assert (r1.start_day, r1.end_day, r1.value, r1.label, r1.source) == (9, 9, 62.0, "Heavy rain, 11 Nov", "open-meteo")
     assert (a1.start_day, a1.end_day, a1.value, a1.label, a1.source) == (9, 9, 215.0, "Poor air, 11 Nov", "open-meteo")
     assert (a2.start_day, a2.end_day, a2.label, a2.source) == (26, 27, "Poor air, 28–29 Nov", "fixture")
+
+
+def test_daily_summary(demo):
+    assert daily_summary(demo, "fixture", 8, 13) == {"max_rain_mm": 18.0, "max_aqi": 88, "band": "Satisfactory"}
+    clamped = daily_summary(demo, "fixture", 26, 30)
+    assert (clamped["max_aqi"], clamped["band"]) == (205, "Poor")
+
+
+def test_main(demo, capsys, monkeypatch):
+    monkeypatch.setenv("TODAY_DAY", "8")
+    main(["--seed", "1"])
+    out = capsys.readouterr().out
+    assert "Risk windows · test case 1 · fixture" in out
+    assert any(line.startswith("A1") for line in out.splitlines())
+    assert "Forecast for 10–15 Nov: highest rain 18.0 mm in 24 hours · AQI 88 · Satisfactory" in out

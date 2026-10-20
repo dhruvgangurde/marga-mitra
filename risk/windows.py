@@ -1,10 +1,11 @@
-﻿"""Risk windows: heavy rain, poor air and events, from the forecast."""
+"""Risk windows: heavy rain, poor air and events, from the forecast."""
 
+import argparse
 from datetime import date, timedelta
 
 from contracts import costs
 from contracts.models import RiskKind, RiskWindow, Scenario
-from risk import weather
+from risk import aqi, weather
 
 
 def _fmt(d: date) -> str:
@@ -71,3 +72,38 @@ def compute_risk_windows(
             seen.add(w.window_id)
             unique.append(w)
     return sorted(unique, key=lambda w: (w.start_day, w.end_day, w.window_id))
+
+
+def daily_summary(scenario: Scenario, mode: str, start_day: int, end_day: int) -> dict:
+    """Highest rain and air quality in a range of days (forecast only, clamped to the horizon)."""
+    days = weather.daily_weather(mode)[: scenario.horizon_days]
+    chosen = [d for d in days if start_day <= d.day <= end_day]
+    max_aqi = max(d.aqi for d in chosen)
+    return {"max_rain_mm": max(d.rain_mm for d in chosen), "max_aqi": max_aqi, "band": aqi.band(max_aqi)}
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Show the risk windows for a test case.")
+    parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--mode", choices=["fixture", "live"], default="fixture")
+    args = parser.parse_args(argv)
+
+    from data.demo import demo_scenario  # data is only used by the command line
+    from data.scenario import generate_scenario
+
+    scenario = demo_scenario() if args.seed == 1 else generate_scenario(args.seed)
+    windows = compute_risk_windows(scenario, args.mode)
+    print(f"Risk windows · test case {args.seed} · {args.mode}")
+    for w in windows:
+        value = {"rain": f"{w.value:.1f} mm", "air": f"AQI {w.value:.0f}"}.get(w.kind.value, "")
+        when = days_label(scenario.start_date, w.start_day, w.end_day)
+        print(f"{w.window_id}  {w.kind.value}  {when}  {value}  {len(w.segment_ids)} road segments  {w.source}")
+    today = weather.today_day()
+    last = today + 5
+    s = daily_summary(scenario, args.mode, today, last)
+    print(f"Forecast for {days_label(scenario.start_date, today, last)}: highest rain {s['max_rain_mm']:.1f} mm "
+          f"in 24 hours · AQI {s['max_aqi']} · {s['band']}")
+
+
+if __name__ == "__main__":
+    main()
