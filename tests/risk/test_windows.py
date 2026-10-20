@@ -1,4 +1,5 @@
 import json
+import urllib.error
 from datetime import date
 from pathlib import Path
 
@@ -81,19 +82,58 @@ def test_synthetic_rain(monkeypatch):
     assert all(w.segment_ids == ["S-0002"] for w in ws)
 
 
-def test_live_mode(demo, monkeypatch, tmp_path):
-    def fake(url):
-        name = "air_quality.json" if "air-quality" in url else "forecast.json"
-        return json.loads((SAMPLES / name).read_text(encoding="utf-8"))
+def _samples(url):
+    name = "air_quality.json" if "air-quality" in url else "forecast.json"
+    return json.loads((SAMPLES / name).read_text(encoding="utf-8"))
 
+
+def _offline(url):
+    raise urllib.error.URLError("offline")
+
+
+def _live(monkeypatch, tmp_path, fake=_samples):
     monkeypatch.setattr(weather, "_get_json", fake)
     monkeypatch.setattr(weather, "CACHE", tmp_path / "cache.json")
     monkeypatch.setenv("TODAY_DAY", "8")
+
+
+def test_live_mode(demo, monkeypatch, tmp_path):
+    _live(monkeypatch, tmp_path)
     ws = {w.window_id: w for w in compute_risk_windows(demo, "live")}
-    r1, a1, a2 = ws["R1"], ws["A1"], ws["A2"]
+    assert set(ws) == {"EV-DEMO", "R1", "A1"}
+    r1, a1 = ws["R1"], ws["A1"]
     assert (r1.start_day, r1.end_day, r1.value, r1.label, r1.source) == (9, 9, 62.0, "Heavy rain, 11 Nov", "open-meteo")
     assert (a1.start_day, a1.end_day, a1.value, a1.label, a1.source) == (9, 9, 215.0, "Poor air, 11 Nov", "open-meteo")
-    assert (a2.start_day, a2.end_day, a2.label, a2.source) == (26, 27, "Poor air, 28–29 Nov", "fixture")
+    assert all(w.end_day < 26 or w.start_day > 27 for w in ws.values())
+    status = weather.live_status()
+    assert (status["source"], status["live_rain_days"], status["live_air_days"]) == ("open-meteo", 2, 2)
+
+
+def test_live_failure(demo, monkeypatch, tmp_path):
+    _live(monkeypatch, tmp_path, _offline)
+    ws = {w.window_id: w for w in compute_risk_windows(demo, "live")}
+    assert set(ws) == {"EV-DEMO", "A1"}
+    a1 = ws["A1"]
+    assert (a1.start_day, a1.end_day, a1.value, a1.source) == (26, 27, 205.0, "fixture")
+    status = weather.live_status()
+    assert (status["source"], status["error"]) == ("fixture", "URLError")
+
+
+def test_fixture_status(demo):
+    ws = compute_risk_windows(demo, "fixture")
+    assert [(w.window_id, w.start_day, w.end_day, w.source) for w in ws if w.window_id == "A1"] == [("A1", 26, 27, "fixture")]
+    assert weather.live_status()["mode"] == "fixture"
+
+
+def test_main_live_lines(demo, capsys, monkeypatch, tmp_path):
+    _live(monkeypatch, tmp_path)
+    main(["--mode", "live"])
+    assert "Forecast source: Open-Meteo" in capsys.readouterr().out
+    weather.reset_live_state()
+    _live(monkeypatch, tmp_path, _offline)
+    monkeypatch.setattr(weather, "CACHE", tmp_path / "other.json")
+    main(["--mode", "live"])
+    assert "Forecast source: demo forecast (live forecast unavailable: URLError)" in capsys.readouterr().out
 
 
 def test_daily_summary(demo):
