@@ -125,10 +125,10 @@ export default function CommandScreen() {
     { onSuccess: () => { setDay(12); setParam('tab', 'risk'); } },
   );
 
-  useLiveEvent('ui.action', (data) => {
-    const args = (data.args ?? {}) as Record<string, unknown>;
+  // The copilot's screen actions. The dock calls this for its own turn only.
+  const applyAction = (action: string, args: Record<string, unknown>) => {
     const workId = typeof args.work_id === 'string' ? args.work_id : null;
-    switch (data.action) {
+    switch (action) {
       case 'select_work':
       case 'open_drawer':
         if (workId) setParam('work', workId);
@@ -151,7 +151,7 @@ export default function CommandScreen() {
       default:
         break;
     }
-  });
+  };
 
   // A link to a work that is not in this plan is dropped, with one note.
   const missing = useRef<string | null>(null);
@@ -225,7 +225,7 @@ export default function CommandScreen() {
 
       <div className="mm-app-cmd__copilot">
         <div className="mm-app-cmd__copilot-in">
-          <CopilotDock context={{ day, tab, selected_work: selectedWorkId, plan_id: plan?.plan_id }} />
+          <CopilotDock context={{ day, tab, selected_work: selectedWorkId, plan_id: plan?.plan_id }} onAction={applyAction} />
         </div>
       </div>
 
