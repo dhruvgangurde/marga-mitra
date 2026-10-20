@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from contracts import fakes
 from contracts.models import Assignment, Plan, PlanVariant, Scenario
@@ -39,3 +39,13 @@ def naive():
         )
 
     return build
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    import httpx
+
+    def refuse(self, *args, **kwargs):
+        raise AssertionError("tests must not use the network")
+
+    monkeypatch.setattr(httpx.Client, "send", refuse)
