@@ -1,8 +1,9 @@
-﻿import pytest
+import pytest
 
 from contracts import fakes
 from contracts.models import Assignment, Plan, PlanVariant, Scenario
 from data.osm_import import SNAPSHOT
+from risk import weather
 
 
 @pytest.fixture
@@ -29,3 +30,16 @@ def old_way():
                     created_at=fakes.now(), assignments=assignments)
 
     return build
+
+
+@pytest.fixture(autouse=True)
+def _fresh_live_state():
+    weather.reset_live_state()
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    def refuse(url):
+        raise AssertionError("tests must not use the network")
+
+    monkeypatch.setattr(weather, "_get_json", refuse)
