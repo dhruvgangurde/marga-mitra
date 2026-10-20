@@ -77,3 +77,15 @@ def test_scenario_load_switches_seed(client):
     assert r.json() == {"seed": 2, "start_date": "2026-11-02", "works": 4, "segments": 3}
     assert [p["plan_id"] for p in client.get("/plans").json()] == ["P-OLD-2"]
     assert client.post("/scenario/load", params={"seed": 0}).status_code == 422
+
+
+def test_scenario_load_is_broadcast(client):
+    with client.websocket_connect("/ws") as ws:
+        client.post("/scenario/load", params={"seed": 2})
+        for _ in range(5):
+            msg = ws.receive_json()
+            if msg["type"] == "ledger.appended" and msg["data"]["action"] == "scenario.loaded":
+                break
+        else:
+            raise AssertionError("no scenario.loaded entry on /ws")
+    assert msg["data"]["summary"] == "Loaded test case 2: 4 works on 3 road segments"

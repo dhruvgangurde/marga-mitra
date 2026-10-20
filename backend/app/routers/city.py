@@ -1,10 +1,13 @@
+import asyncio
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from backend.app import store
+from backend.app import ledger, store
 from backend.app.db import session
 from backend.app.schemas import Department, ScenarioLoaded
+from contracts.models import LedgerEntry, WsEvent
 
 router = APIRouter(tags=["city"])
 
@@ -19,12 +22,21 @@ DEPARTMENTS = [
 DEPT_NAMES = {d.id: d.name for d in DEPARTMENTS}
 
 
+def _newest_entry() -> LedgerEntry:
+    with session() as s:
+        return ledger.latest(s, 1)[0]
+
+
 @router.post("/scenario/load")
-def load(request: Request, seed: int = Query(1, ge=1)) -> ScenarioLoaded:
+async def load(request: Request, seed: int = Query(1, ge=1)) -> ScenarioLoaded:
     from backend.app.main import load_scenario  # main imports this router, so import it at call time
 
-    scenario = load_scenario(request.app, seed)
+    scenario = await asyncio.to_thread(load_scenario, request.app, seed)
     request.app.state.seed = seed
+    # shortcut: the newest entry is the one load_scenario just wrote; fine for one API process
+    entry = await asyncio.to_thread(_newest_entry)
+    await request.app.state.wiring.deps.emit(
+        WsEvent(type="ledger.appended", data=entry.model_dump(mode="json"), ts=datetime.now(UTC)))
     return ScenarioLoaded(seed=seed, start_date=scenario.start_date, works=len(scenario.works),
                           segments=len(scenario.segments))
 
