@@ -12,6 +12,7 @@ import type { PlanMapHandle } from '../../map/PlanMap';
 import { useLiveEvent } from '../../api/live';
 import { CopilotDock } from './CopilotDock';
 import { NegotiationTab } from './NegotiationTab';
+import { WorkDrawer } from './WorkDrawer';
 import { WorksTab } from './WorksTab';
 import { Button, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toast, Toggle } from '../../ui';
 
@@ -185,6 +186,14 @@ export default function CommandScreen() {
           </div>
         </section>
       </aside>
+
+      {selectedWorkId ? (
+        <WorkDrawer
+          workId={selectedWorkId}
+          onClose={() => setParam('work', null)}
+          onFit={(id) => mapRef.current?.fitWork(id)}
+        />
+      ) : null}
 
       <div className="mm-app-cmd__toast">{toast ? <Toast icon="check">{toast}</Toast> : null}</div>
     </div>
