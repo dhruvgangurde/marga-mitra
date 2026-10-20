@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { USE_MOCKS } from '../../api/client';
-import { useReportEmergency, useSegments } from '../../api/hooks';
+import { useReportEmergency, useSegments, useWork } from '../../api/hooks';
 import type { CitizenReport, EmergencyInput } from '../../api/types';
 import {
   Banner, Button, Card, FocusTarget, Icon, LoadError, metresBetween, metresToLine, PhoneScreen, PhotoSlot, StatusBadge, TextField,
@@ -25,9 +25,10 @@ const HINT = { margin: 0, color: 'var(--ink-3)' } as const;
 export default function ReportScreen() {
   const segments = useSegments();
   const features = segments.data?.features ?? [];
+  const demoWork = useWork(USE_MOCKS ? 'W-118' : undefined);
   const report = useReportEmergency();
   const [kind, setKind] = useState<Kind | null>(null);
-  const [place, setPlace] = useState<Place | null>(null);
+  const [reading, setReading] = useState<Place | null>(null);
   const [locating, setLocating] = useState(true);
   const [locFailed, setLocFailed] = useState(false);
   const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
@@ -36,14 +37,19 @@ export default function ReportScreen() {
   const fileInput = useRef<HTMLInputElement>(null);
   const urls = useRef<string[]>([]);
 
+  // shortcut: demo location in mock mode; the real app needs the phone's location
+  const start = features.find((f) => f.properties.segment_id === demoWork.data?.work.segment_ids[0])?.geometry.coordinates[0];
+  const demoSpot: Place = start ? { lat: start[1] + 5 / 111320, lon: start[0] } : DEMO_SPOT;
+  const place = USE_MOCKS && (!reading || metresBetween(reading.lat, reading.lon, SURATHKAL.lat, SURATHKAL.lon) > 20000)
+    ? demoSpot
+    : reading;
+
   function locate() {
     setLocating(true);
     setLocFailed(false);
     const done = (p: Place | null) => {
-      // shortcut: demo location in mock mode; the real app needs the phone's location
-      const usable = USE_MOCKS && (!p || metresBetween(p.lat, p.lon, SURATHKAL.lat, SURATHKAL.lon) > 20000) ? DEMO_SPOT : p;
-      if (usable) setPlace(usable);
-      setLocFailed(!usable);
+      if (p) setReading(p);
+      setLocFailed(!p && !USE_MOCKS);
       setLocating(false);
     };
     if (!navigator.geolocation) return done(null);
