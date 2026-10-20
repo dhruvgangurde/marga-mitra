@@ -48,6 +48,7 @@ export { TopBar } from './TopBar';
 export type { TopBarProps } from './TopBar';
 export { PhoneScreen } from './PhoneScreen';
 export type { PhoneScreenProps } from './PhoneScreen';
+export { metresBetween, metresToLine } from './geo';
 export { DEPTS } from './depts';
 export type { Dept } from './depts';
 export type { IconName } from './icons';
