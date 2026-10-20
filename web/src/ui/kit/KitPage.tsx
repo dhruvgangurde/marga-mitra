@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type * as React from 'react';
 import {
   Banner, Button, Card, CopilotBar, DataTable, DEPTS, DeptChip, DiffRow, FolderCard, Icon, IconButton, MapLegend, MetricTile,
-  NegotiationMessage, PhotoSlot, Seal, StatusBadge, StepList, Tabs, Tag, TextField, Toast, Toggle, TimelineSlider, TopBar,
+  NegotiationMessage, PhotoSlot, problemText, PROBLEM_CASES, Seal, StatusBadge, StepList, Tabs, Tag, TextField, Toast, Toggle,
+  TimelineSlider, TopBar,
 } from '..';
 import type { Dept, IconName } from '..';
 import { ICONS } from '../icons';
@@ -27,6 +28,12 @@ function Section({ name, shows, children }: { name: string; shows: string; child
     </section>
   );
 }
+
+// Each case whose words differ from what it expects, as one line to read.
+const PROBLEM_FAILURES = PROBLEM_CASES.flatMap(([name, error, expected]) => {
+  const got = problemText(error);
+  return got.title === expected.title && got.text === expected.text ? [] : [`${name}: got "${got.title} / ${got.text}"`];
+});
 
 const RECORD_COLUMNS = [
   { key: 'n', label: '#', num: true, mono: true },
@@ -284,6 +291,16 @@ export function KitPage() {
             <CopilotBar value={command} onChange={setCommand} onSubmit={() => setCommand('')} />
             <CopilotBar value="plan next month and keep the procession route clear" busy />
           </div>
+        </Section>
+
+        <Section name="Checks" shows="problemText over PROBLEM_CASES">
+          {PROBLEM_FAILURES.length === 0
+            ? <StatusBadge status="ok">Problem words: ok</StatusBadge>
+            : (
+              <ul className="mono" style={{ margin: 0 }}>
+                {PROBLEM_FAILURES.map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            )}
         </Section>
 
         <Section name="TopBar" shows="active · links · place · role · onRole · homeHref">
