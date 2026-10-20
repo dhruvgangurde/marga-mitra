@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { dayDate, dayLabel, deptName, signedInr, timeLabel } from '../../api/format';
+import { dayDate, dayLabel, recipientLabel, signedInr, timeLabel } from '../../api/format';
 import { useNegotiation, useOldWayPlan, useOrchestrate, useRun, useShownPlan, useWorks } from '../../api/hooks';
 import { useFreshIds } from '../../api/live';
 import { Banner, Button, Icon, NegotiationMessage, StatusBadge } from '../../ui';
@@ -89,7 +89,7 @@ export function NegotiationTab({ onReview }: { onReview: () => void }) {
           <NegotiationMessage
             key={m.msg_id}
             sender={m.sender}
-            to={m.recipients.map((r) => (r === 'everyone' ? 'Everyone' : deptName(r))).join(', ')}
+            to={m.recipients.map(recipientLabel).join(', ')}
             type={m.type}
             round={m.round}
             time={timeLabel(m.ts)}

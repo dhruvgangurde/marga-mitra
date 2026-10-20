@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { actorLabel, dateTimeLabel, dayRange, shortTime, signedInr } from '../../api/format';
+import { actorLabel, dateTimeLabel, dayRange, errorText, shortTime, signedInr } from '../../api/format';
 import { useApprovals, useDecideApproval, useNegotiation, useOldWayPlan, usePlan, usePlanDiff, usePlanMetrics } from '../../api/hooks';
 import type { Approval, Tier } from '../../api/types';
 import { Banner, Button, Card, DiffRow, Icon, StatusBadge, StepList, Tag, TextField } from '../../ui';
@@ -44,6 +44,7 @@ export function ApprovalsTab() {
   const decide = useDecideApproval();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | undefined>();
+  const [failure, setFailure] = useState<string | undefined>();
   const [done, setDone] = useState<Decided | null>(null);
   const field = useRef<HTMLDivElement>(null);
 
@@ -71,9 +72,10 @@ export function ApprovalsTab() {
       return;
     }
     setError(undefined);
+    setFailure(undefined);
     decide.mutate(
       { approvalId: current.approval_id, decision, by: 'ward_engineer', reason: decision === 'reject' ? text : undefined },
-      { onSuccess: () => setDone({ approval: current, decision, reason: text }) },
+      { onSuccess: () => setDone({ approval: current, decision, reason: text }), onError: (e) => setFailure(errorText(e)) },
     );
   };
 
@@ -124,6 +126,7 @@ export function ApprovalsTab() {
           </ul>
           <Link to="/approvals" className="small-strong">See all {changes.length} changes</Link>
 
+          {failure ? <Banner tone="warn">{failure}</Banner> : null}
           {decided ? (
             approved
               ? <Banner tone="ok">Approved. Department heads are told.</Banner>
