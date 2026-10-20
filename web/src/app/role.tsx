@@ -58,7 +58,8 @@ export function RoleMenu({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // The drawer and the copilot card close first.
+      if (e.key === 'Escape' && !document.querySelector('.mm-app-drawer, .mm-app-copilot__steps')) onClose();
     };
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;

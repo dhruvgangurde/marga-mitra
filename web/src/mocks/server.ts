@@ -3,10 +3,10 @@
 import { ApiError } from '../api/client';
 import { dayRange, inr, TODAY_DAY } from '../api/format';
 import type {
-  Approval, Assignment, AuditorFlag, CitizenReport, ConfirmBody, CopilotBody, CopilotReply, DecideBody, Department,
+  Approval, Assignment, AuditorFlag, CitizenReport, ConfirmBody, CopilotBody, CopilotReply, CopilotStep, DecideBody, Department,
   EmergencyInput, EvalSummary, EventBody, EventType, Evidence, EvidenceInput, Explanation, ForecastOverrideBody,
   Health, LedgerEntry, LedgerOpts, LedgerVerify, Metrics, NegotiationMessage, NoDigEntry, Plan, RiskWindow,
-  RunResult, ScenarioLoad, Segment, SegmentCollection, Verification, WhatIfBody, WhatIfResult, Work, WorkChange,
+  RunResult, ScenarioLoad, Segment, SegmentCollection, UiAction, Verification, WhatIfBody, WhatIfResult, Work, WorkChange,
   WorkStatus, WorkView,
 } from '../api/types';
 import { mockBus } from './bus';
@@ -241,8 +241,8 @@ function statusOf(work: Work, assignment: Assignment | null): WorkStatus {
   if (verification?.result === 'verified') return 'verified';
   if (verification?.result === 'held') return 'held';
   if (work.done) return 'done';
-  if (assignment && TODAY_DAY >= assignment.start_day && TODAY_DAY <= assignment.end_day) return 'digging';
   if (assignment?.shared_group) return 'shared';
+  if (assignment && TODAY_DAY >= assignment.start_day && TODAY_DAY <= assignment.end_day) return 'digging';
   if (assignment && (assignment.start_day !== work.requested_start || assignment.mode !== work.modes[0].mode)) return 'moved';
   return 'planned';
 }
@@ -554,10 +554,75 @@ export function whatIf(body: WhatIfBody): Promise<WhatIfResult> {
   });
 }
 
-export function copilot(body: CopilotBody): Promise<CopilotReply> {
-  return reply(() => ({
-    reply_id: `RP-${body.message.length}`, text: 'The copilot is ready in part 2.', steps: [], actions: [], used_llm: false,
-  }));
+
+interface ScriptStep { text: string; detail?: string; ends?: 'needs'; before?: () => void }
+interface Script { steps: ScriptStep[]; actions: UiAction[]; text: string }
+
+let replySeq = 0;
+const STEP_MS = 600;
+
+function copilotScript(message: string): Script | null {
+  const lower = message.toLowerCase();
+  if (lower.includes('rain')) {
+    return {
+      steps: [
+        { text: 'Reading the rain forecast for 14\u201315 Nov', detail: '70 mm in 24 hours \u00b7 simulated' },
+        { text: 'Finding works on low-lying roads', detail: 'D-412, P-118, W-118' },
+        {
+          text: 'Asking the departments to move', detail: 'All 3 agreed in round 1',
+          before: () => { void forecastOverride({ kind: 'rain', start_day: 12, end_day: 13, value: 70 }); },
+        },
+        { text: 'Re-planning with the scheduler', detail: '0 trenches open in the rain' },
+        { text: 'Waiting for your approval', ends: 'needs' },
+      ],
+      actions: [
+        { action: 'set_day', args: { day: 12 } },
+        { action: 'open_tab', args: { tab: 'risk' } },
+        { action: 'show_toast', args: { text: 'Plan updated. 3 works moved out of the rain window.' } },
+      ],
+      text: 'Rain is coming on 14\u201315 Nov. 3 works moved out of it; the new plan is waiting for your approval.',
+    };
+  }
+  if (lower.includes('munchur')) {
+    return {
+      steps: [
+        { text: 'Finding works on Munchur Road', detail: 'W-104, T-221, G-310, R-501' },
+        { text: 'Showing them on the map' },
+      ],
+      actions: [
+        { action: 'open_tab', args: { tab: 'works' } },
+        { action: 'select_work', args: { work_id: 'W-104' } },
+        { action: 'fit_work', args: { work_id: 'W-104' } },
+      ],
+      text: '4 works are planned on Munchur Road. W-104 and T-221 share one trench on 10\u201315 Nov.',
+    };
+  }
+  return null;
+}
+
+export async function copilot(body: CopilotBody): Promise<CopilotReply> {
+  replySeq += 1;
+  const reply_id = `RP-${replySeq}`;
+  await wait(DELAY_MS);
+  const script = copilotScript(body.message);
+  if (!script) {
+    return {
+      reply_id, steps: [], actions: [], used_llm: false,
+      text: 'I can show the works on a road, move the day, simulate rain or open a work. Try: show every dig on Munchur Road next week.',
+    };
+  }
+  const steps: CopilotStep[] = [];
+  for (const [i, step] of script.steps.entries()) {
+    const base = { step_id: `${reply_id}-S${i + 1}`, text: step.text, detail: step.detail ?? null };
+    step.before?.();
+    emit('copilot.step', { ...base, status: 'running', reply_id });
+    await wait(STEP_MS);
+    const done: CopilotStep = { ...base, status: step.ends ?? 'done' };
+    emit('copilot.step', { ...done, reply_id });
+    steps.push(done);
+  }
+  for (const action of script.actions) emit('ui.action', { ...action, reply_id });
+  return copy({ reply_id, text: script.text, steps, actions: script.actions, used_llm: false });
 }
 
 // ---------- reads ----------

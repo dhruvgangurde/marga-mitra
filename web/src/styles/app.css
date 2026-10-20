@@ -87,3 +87,79 @@
 .mm-app-marker__pulse { position: absolute; top: -4px; right: -4px; }
 .mm-app-map .maplibregl-ctrl-attrib { font-family: var(--font-sans); font-size: 12px; line-height: 16px; color: var(--ink-3); background: var(--paper); }
 .mm-app-map .maplibregl-ctrl-attrib a { color: inherit; }
+/* Negotiation tab */
+.mm-app-neg { display: flex; flex-direction: column; gap: 16px; }
+.mm-app-neg__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mm-app-neg__list { display: flex; flex-direction: column; gap: 12px; }
+.mm-app-neg__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px 0; }
+/* Copilot steps */
+.mm-app-cmd__copilot-in { position: relative; }
+.mm-app-copilot__steps { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); }
+.mm-app-copilot__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+/* Works tab */
+.mm-app-works { display: flex; flex-direction: column; gap: 12px; }
+.mm-app-works__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.mm-app-works__card { display: flex; flex-direction: column; gap: 6px; padding: 12px; text-decoration: none; color: inherit; }
+.mm-app-works__card[aria-current="true"] { background: var(--sand); }
+.mm-app-works__row { display: flex; align-items: center; gap: 8px; }
+.mm-app-works__row--split { justify-content: space-between; }
+.mm-app-works__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 0; }
+/* Works tab */
+.mm-app-works { display: flex; flex-direction: column; gap: 12px; }
+.mm-app-works__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.mm-app-works__card { display: flex; flex-direction: column; gap: 6px; padding: 12px; text-decoration: none; color: inherit; }
+.mm-app-works__card[aria-current="true"] { background: var(--sand); }
+.mm-app-works__row { display: flex; align-items: center; gap: 8px; }
+.mm-app-works__row--split { justify-content: space-between; }
+.mm-app-works__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 0; }
+/* Work drawer */
+.mm-app-drawer { position: fixed; top: 64px; right: 0; bottom: 0; width: 480px; max-width: 100vw; z-index: var(--z-drawer); display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; background: var(--paper); border: var(--stroke-ui) solid var(--ink); border-right: 0; border-radius: 24px 0 0 24px; box-shadow: var(--shadow-soft); }
+@media (prefers-reduced-motion: no-preference) {
+  .mm-app-drawer { animation: mm-app-drawer-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+}
+@keyframes mm-app-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.mm-app-drawer__head { display: flex; flex-direction: column; gap: 12px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+.mm-app-drawer__top { display: flex; align-items: center; gap: 8px; }
+.mm-app-drawer__facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.mm-app-drawer__body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 24px; padding: 20px; }
+.mm-app-drawer__reasons { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.mm-app-drawer__reason { display: flex; align-items: flex-start; gap: 12px; }
+.mm-app-drawer__dot { flex: 0 0 32px; display: grid; place-items: center; width: 32px; height: 32px; box-sizing: border-box; background: var(--sand); border: 1.5px solid var(--ink); border-radius: 50%; }
+.mm-app-drawer__whatif { display: flex; flex-direction: column; gap: 12px; }
+.mm-app-drawer__row { display: flex; align-items: center; gap: 12px; }
+.mm-app-drawer__diffs { margin: 0; padding: 0; list-style: none; }
+.mm-app-drawer__record { margin: 0 0 8px; padding: 0; list-style: none; }
+.mm-app-drawer__entry { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.mm-app-drawer__foot { display: flex; gap: 12px; padding: 16px 20px; border-top: 1px solid var(--line); }
+/* Risk tab */
+.mm-app-risk { display: flex; flex-direction: column; gap: 16px; }
+.mm-app-risk__head { display: flex; align-items: center; gap: 8px; }
+.mm-app-risk__dot { flex: 0 0 28px; display: grid; place-items: center; width: 28px; height: 28px; box-sizing: border-box; border: 1.5px solid var(--ink); border-radius: 50%; }
+.mm-app-risk__diffs { margin: 0; padding: 0; list-style: none; }
+.mm-app-risk__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 0; }
+/* Approvals tab */
+.mm-app-appr { display: flex; flex-direction: column; gap: 16px; }
+.mm-app-appr__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mm-app-appr__tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.mm-app-appr__diffs { margin: 0; padding: 0; list-style: none; }
+.mm-app-appr__actions { display: flex; align-items: center; gap: 12px; }
+.mm-app-appr__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 0; }
+
+/* States, small screens and reduced motion */
+.mm-app-cmd__handle { display: none; }
+@media (max-width: 1023px) {
+  .mm-app-cmd__panel { display: flex; flex-direction: column; }
+  .mm-app-cmd__handle { display: flex; align-items: center; justify-content: center; flex: 0 0 56px; box-sizing: border-box; background: var(--paper); border: var(--stroke-ui) solid var(--ink); border-bottom: 0; border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; }
+  .mm-app-cmd__folder { flex: 1; min-height: 0; height: auto; border-radius: 0; }
+  .mm-app-cmd__panel--folded { height: 56px; }
+  .mm-app-cmd__panel--folded .mm-app-cmd__folder { display: none; }
+  .mm-app-cmd--folded .mm-app-cmd__timeline { bottom: 68px; }
+  .mm-app-cmd--folded .mm-app-cmd__copilot { bottom: 180px; }
+  .mm-app-drawer { width: 100vw; border-radius: 0; border-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mm-app-cmd *, .mm-app-drawer { animation: none !important; transition: none !important; }
+}
+
+/* Final pass */
+.mm-app-cmd__body > * { flex-shrink: 0; }
