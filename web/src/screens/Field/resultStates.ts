@@ -1,4 +1,4 @@
-// shortcut: screenshot states for the proposal; delete once the real API is in, Phase 3
+// shortcut: screenshot states for the proposal, mock mode only; remove when the team takes no more mock screenshots
 import type { CheckName, CheckStatus, Verification, VerificationCheck } from '../../api/types';
 
 export type ResultState = Pick<Verification, 'result' | 'checks' | 'deposit_inr'>;
