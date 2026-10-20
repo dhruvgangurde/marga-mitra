@@ -138,7 +138,7 @@ export default function ReportScreen() {
               />
               <span
                 style={{
-                  width: 36, height: 36, boxSizing: 'border-box', borderRadius: 'var(--radius-pill)',
+                  width: 36, height: 36, flex: 'none', boxSizing: 'border-box', borderRadius: 'var(--radius-pill)',
                   border: 'var(--stroke-ui) solid var(--ink)', background: 'var(--paper)', display: 'grid', placeItems: 'center',
                 }}
               >

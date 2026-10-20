@@ -128,7 +128,7 @@ export default function ApprovalsScreen() {
       </Card>
 
       {now && old ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
           <MetricTile
             label="Digs per road"
             value={now.digs_per_road}

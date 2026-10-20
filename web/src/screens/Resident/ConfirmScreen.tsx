@@ -147,7 +147,7 @@ export default function ConfirmScreen() {
         <p className="body-l" style={{ margin: 0, color: 'var(--ink-2)' }}>{lead}</p>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         {crewPhoto('Before', 'Crew photo before: open trench', latest('before'))}
         {crewPhoto('After', 'Crew photo after: road patched', latest('after'))}
       </div>

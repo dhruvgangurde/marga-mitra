@@ -132,7 +132,7 @@ export default function FieldResultScreen() {
         </div>
       </FocusTarget>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         {photo('Before', 'Before photo: open trench', latest('before'))}
         {photo('After', 'After photo: trench closed and patched', latest('after'))}
       </div>
