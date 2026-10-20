@@ -26,6 +26,13 @@ class Department(BaseModel):
     color_token: str
 
 
+class NoDigEntry(BaseModel):
+    segment_id: str
+    name: str
+    protected_until: date
+    why: str
+
+
 class _Days(BaseModel):
     start_day: int = Field(ge=0, le=27)
     end_day: int = Field(ge=0, le=27)
