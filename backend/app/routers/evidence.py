@@ -77,13 +77,20 @@ async def add_evidence(
         ext = storage.check_photo(data)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+    return await add_photo(request.app, seed, work, kind, data, ext, lat, lon, taken_at)
+
+
+async def add_photo(app: FastAPI, seed: int, work: Work, kind: str, data: bytes, ext: str, lat: float | None,
+                    lon: float | None, taken_at: datetime | None) -> Evidence:
+    """Save a checked photo, store it and record it."""
+    work_id = work.work_id
     ev = await asyncio.to_thread(_save, seed, work_id, kind, data, ext, lat, lon, taken_at)
     if kind == "citizen":
         actor, summary = "resident", f"A resident added a photo for {work_id}"
     else:
         actor, summary = work.dept.value, f"{DEPT_NAMES[work.dept.value]} crew added the {kind} photo for {work_id}"
-    await request.app.state.wiring.deps.ledger_append(actor, "evidence.added", f"work:{work_id}", summary,
-                                                      ev.model_dump(mode="json"))
+    await app.state.wiring.deps.ledger_append(actor, "evidence.added", f"work:{work_id}", summary,
+                                              ev.model_dump(mode="json"))
     return ev
 
 

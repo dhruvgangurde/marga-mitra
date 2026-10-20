@@ -2,6 +2,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
+from geoalchemy2 import Geography
 from geoalchemy2.shape import from_shape
 from shapely.geometry import LineString
 from sqlalchemy import delete, func, select
@@ -74,6 +75,15 @@ def add_work(s: Session, seed: int, work: Work) -> Work:
                   data=work.model_dump(mode="json")))
     s.flush()
     return work
+
+
+def nearest_segment(s: Session, segment_ids: list[str], lat: float, lon: float) -> tuple[str, float] | None:
+    """The closest of these segments to a point, and its distance in metres."""
+    here = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326).cast(Geography)
+    d = func.ST_Distance(SegmentRow.geom.cast(Geography), here)
+    row = s.execute(select(SegmentRow.segment_id, d).where(SegmentRow.segment_id.in_(segment_ids))
+                    .order_by(d, SegmentRow.segment_id).limit(1)).first()
+    return (row[0], row[1]) if row else None
 
 
 def segments_geojson(s: Session, bbox: tuple[float, float, float, float] | None) -> dict[str, Any]:
