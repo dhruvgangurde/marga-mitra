@@ -92,3 +92,7 @@
 .mm-app-neg__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .mm-app-neg__list { display: flex; flex-direction: column; gap: 12px; }
 .mm-app-neg__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px 0; }
+/* Copilot steps */
+.mm-app-cmd__copilot-in { position: relative; }
+.mm-app-copilot__steps { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); }
+.mm-app-copilot__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }

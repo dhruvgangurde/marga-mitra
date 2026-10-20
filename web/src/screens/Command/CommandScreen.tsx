@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { compareLabel, dayLabel, metricDelta, TODAY_DAY } from '../../api/format';
 import type { MetricKind } from '../../api/format';
@@ -8,8 +8,11 @@ import {
 import type { Metrics } from '../../api/types';
 import { mapLegendCounts } from '../../map/geo';
 import { PlanMap } from '../../map/PlanMap';
+import type { PlanMapHandle } from '../../map/PlanMap';
+import { useLiveEvent } from '../../api/live';
+import { CopilotDock } from './CopilotDock';
 import { NegotiationTab } from './NegotiationTab';
-import { Button, CopilotBar, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toggle } from '../../ui';
+import { Button, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toast, Toggle } from '../../ui';
 
 const TABS = ['negotiation', 'works', 'risk', 'approvals'] as const;
 type TabId = (typeof TABS)[number];
@@ -35,15 +38,21 @@ export default function CommandScreen() {
   const [params, setParams] = useSearchParams();
   const [day, setDay] = useState(TODAY_DAY);
   const [showOldWay, setShowOldWay] = useState(false);
-  const [ask, setAsk] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  const mapRef = useRef<PlanMapHandle>(null);
 
+  const latestParams = useRef(params);
+  latestParams.current = params;
   const tabParam = params.get('tab');
   const tab: TabId = TABS.find((t) => t === tabParam) ?? 'negotiation';
   const selectedWorkId = params.get('work');
   const setParam = (key: string, value: string | null) => {
-    const next = new URLSearchParams(params);
+    // Several actions can arrive in one tick, so each builds on the newest address, not on this render's.
+    const next = new URLSearchParams(latestParams.current);
     if (value) next.set(key, value);
     else next.delete(key);
+    latestParams.current = next;
     setParams(next, { replace: true });
   };
 
@@ -57,6 +66,36 @@ export default function CommandScreen() {
   const segments = useSegments().data;
   const messages = useNegotiation().data ?? [];
   const pending = useApprovals('pending').data ?? [];
+
+  useLiveEvent('ui.action', (data) => {
+    const args = (data.args ?? {}) as Record<string, unknown>;
+    const workId = typeof args.work_id === 'string' ? args.work_id : null;
+    switch (data.action) {
+      case 'select_work':
+      case 'open_drawer':
+        if (workId) setParam('work', workId);
+        break;
+      case 'set_day':
+        setDay(Math.min(27, Math.max(0, Number(args.day) || 0)));
+        break;
+      case 'open_tab':
+        if (TABS.some((t) => t === args.tab)) setParam('tab', String(args.tab));
+        break;
+      case 'fit_work':
+        if (workId) mapRef.current?.fitWork(workId);
+        break;
+      case 'toggle_old_way':
+        setShowOldWay(Boolean(args.on));
+        break;
+      case 'show_toast':
+        clearTimeout(toastTimer.current);
+        setToast(String(args.text ?? ''));
+        toastTimer.current = setTimeout(() => setToast(null), 4000);
+        break;
+      default:
+        break;
+    }
+  });
 
   const mapViews = showOldWay ? oldViews : views;
   const counts = useMemo(() => mapLegendCounts(mapViews, day), [mapViews, day]);
@@ -72,6 +111,7 @@ export default function CommandScreen() {
     <div className="mm-app-cmd">
       <div className="mm-app-cmd__map">
         <PlanMap
+          ref={mapRef}
           views={mapViews}
           segments={segments}
           riskWindows={windows}
@@ -107,7 +147,7 @@ export default function CommandScreen() {
 
       <div className="mm-app-cmd__copilot">
         <div className="mm-app-cmd__copilot-in">
-          <CopilotBar value={ask} onChange={setAsk} placeholder="Ask the copilot: show every dig on Munchur Road next week" />
+          <CopilotDock context={{ day, tab, selected_work: selectedWorkId, plan_id: plan?.plan_id }} />
         </div>
       </div>
 
@@ -143,7 +183,7 @@ export default function CommandScreen() {
         </section>
       </aside>
 
-      <div className="mm-app-cmd__toast" />
+      <div className="mm-app-cmd__toast">{toast ? <Toast icon="check">{toast}</Toast> : null}</div>
     </div>
   );
 }
