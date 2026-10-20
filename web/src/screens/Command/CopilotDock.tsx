@@ -30,7 +30,8 @@ export function CopilotDock({ context }: { context: CopilotContext }) {
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      // The drawer closes first.
+      if (e.key === 'Escape' && !document.querySelector('.mm-app-drawer')) close();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -71,7 +72,7 @@ export function CopilotDock({ context }: { context: CopilotContext }) {
   return (
     <>
       {open && (steps.length > 0 || text) ? (
-        <div className="mm-app-copilot__steps">
+        <div className="mm-app-copilot__steps" aria-live="polite">
           <Card soft style={{ border: 'var(--stroke-ui) solid var(--ink)' }}>
             <div className="mm-app-copilot__head">
               <span className="mono-label" style={{ color: 'var(--ink-3)' }}>Copilot</span>

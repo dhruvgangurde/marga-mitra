@@ -16,7 +16,7 @@ import { ApprovalsTab } from './ApprovalsTab';
 import { RiskTab } from './RiskTab';
 import { WorkDrawer } from './WorkDrawer';
 import { WorksTab } from './WorksTab';
-import { Button, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toast, Toggle } from '../../ui';
+import { Banner, Button, Card, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toast, Toggle } from '../../ui';
 
 const TABS = ['negotiation', 'works', 'risk', 'approvals'] as const;
 type TabId = (typeof TABS)[number];
@@ -41,6 +41,7 @@ export default function CommandScreen() {
   });
   const [showOldWay, setShowOldWay] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [folded, setFolded] = useState(false);
   const [toast, setToast] = useState<{ text: string; view: boolean } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
   const mapRef = useRef<PlanMapHandle>(null);
@@ -59,9 +60,11 @@ export default function CommandScreen() {
     setParams(next, { replace: true });
   };
 
-  const plan = useShownPlan().data;
+  const planQ = useShownPlan();
+  const plan = planQ.data;
   const old = useOldWayPlan().data;
-  const views = useWorks(plan?.plan_id).data ?? [];
+  const worksQ = useWorks(plan?.plan_id);
+  const views = worksQ.data ?? [];
   const oldViews = useWorks(old?.plan_id).data ?? [];
   const metrics = usePlanMetrics(plan?.plan_id).data;
   const oldMetrics = usePlanMetrics(old?.plan_id).data;
@@ -145,6 +148,13 @@ export default function CommandScreen() {
     }
   });
 
+  const loading = planQ.isLoading || worksQ.isLoading;
+  const failed = planQ.isError || worksQ.isError;
+  const tryAgain = () => {
+    if (planQ.isError) void planQ.refetch();
+    if (worksQ.isError) void worksQ.refetch();
+  };
+
   const mapViews = showOldWay ? oldViews : views;
   const counts = useMemo(() => mapLegendCounts(mapViews, day), [mapViews, day]);
 
@@ -156,7 +166,7 @@ export default function CommandScreen() {
   ];
 
   return (
-    <div className="mm-app-cmd">
+    <div className={folded ? 'mm-app-cmd mm-app-cmd--folded' : 'mm-app-cmd'}>
       <div className="mm-app-cmd__map">
         <PlanMap
           ref={mapRef}
@@ -178,10 +188,10 @@ export default function CommandScreen() {
             <div key={t.kind} className={i === TILES.length - 1 ? 'mm-app-cmd__tile mm-app-cmd__tile--last' : 'mm-app-cmd__tile'}>
               <MetricTile
                 label={t.label}
-                value={now}
+                value={loading ? '\u2013' : now}
                 unit={t.unit}
-                compare={oldMetrics ? compareLabel(before) : undefined}
-                delta={delta}
+                compare={!loading && oldMetrics ? compareLabel(before) : undefined}
+                delta={loading ? undefined : delta}
                 better={t.kind === 'days_late' ? now <= before : better}
               />
             </div>
@@ -227,12 +237,25 @@ export default function CommandScreen() {
         <Button variant="secondary" icon="refresh" onClick={replan} disabled={orchestrate.isPending}>Re-plan</Button>
       </div>
 
-      <aside className="mm-app-cmd__panel">
+      <aside className={folded ? 'mm-app-cmd__panel mm-app-cmd__panel--folded' : 'mm-app-cmd__panel'}>
+        <div className="mm-app-cmd__handle">
+          <Button variant="ghost" onClick={() => setFolded(!folded)}>{folded ? 'Show plan' : 'Hide plan'}</Button>
+        </div>
         <section className="mm-folder mm-app-cmd__folder">
           <div className="mm-folder__tab"><Icon name="handshake" size={16} />Plan for 2–29 Nov</div>
           <div className="mm-folder__body mm-app-cmd__body">
             <Tabs items={tabItems} value={tab} onChange={(id) => setParam('tab', id)} label="Plan panel" />
-            {tab === 'negotiation' ? (
+            {failed ? (
+              <Banner
+                tone="danger"
+                title="Could not load the plan"
+                action={<Button variant="secondary" onClick={tryAgain}>Try again</Button>}
+              >
+                Check your connection and try again.
+              </Banner>
+            ) : loading ? (
+              <Card><span className="mono" style={{ color: 'var(--ink-3)' }}>Loading{'\u2026'}</span></Card>
+            ) : tab === 'negotiation' ? (
               <NegotiationTab onReview={() => setParam('tab', 'approvals')} />
             ) : tab === 'works' ? (
               <WorksTab onPick={(id) => mapRef.current?.fitWork(id)} />

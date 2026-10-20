@@ -144,3 +144,19 @@
 .mm-app-appr__diffs { margin: 0; padding: 0; list-style: none; }
 .mm-app-appr__actions { display: flex; align-items: center; gap: 12px; }
 .mm-app-appr__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 0; }
+
+/* States, small screens and reduced motion */
+.mm-app-cmd__handle { display: none; }
+@media (max-width: 1023px) {
+  .mm-app-cmd__panel { display: flex; flex-direction: column; }
+  .mm-app-cmd__handle { display: flex; align-items: center; justify-content: center; flex: 0 0 56px; box-sizing: border-box; background: var(--paper); border: var(--stroke-ui) solid var(--ink); border-bottom: 0; border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; }
+  .mm-app-cmd__folder { flex: 1; min-height: 0; height: auto; border-radius: 0; }
+  .mm-app-cmd__panel--folded { height: 56px; }
+  .mm-app-cmd__panel--folded .mm-app-cmd__folder { display: none; }
+  .mm-app-cmd--folded .mm-app-cmd__timeline { bottom: 68px; }
+  .mm-app-cmd--folded .mm-app-cmd__copilot { bottom: 180px; }
+  .mm-app-drawer { width: 100vw; border-radius: 0; border-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mm-app-cmd *, .mm-app-drawer { animation: none !important; transition: none !important; }
+}
