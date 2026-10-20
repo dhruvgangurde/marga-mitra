@@ -9,7 +9,7 @@ import sys
 from collections import Counter
 
 from contracts import costs, rules
-from contracts.models import Dept, Mode, Scenario
+from contracts.models import Dept, Mode, Scenario, Work
 from data.demo import _TABLE, DEMO_ROADS, PROTECTED_ROADS, demo_scenario
 from data.elevation import ELEVATIONS
 from data.osm_import import SNAPSHOT
@@ -137,9 +137,111 @@ def road_lines(scenario: Scenario) -> list[Line]:
     return lines
 
 
+def first_fit(work: Work, blocked: set[int], after: int = -1) -> int | None:
+    """The earliest start for the work's first mode that avoids the blocked days."""
+    d = work.modes[0].duration_days
+    for s in range(max(work.earliest_start, after + 1), work.latest_end - d + 2):
+        if not any(day in blocked for day in range(s, s + d)):
+            return s
+    return None
+
+
+def story_lines(scenario: Scenario) -> list[Line]:
+    from risk import agent, weather, windows  # risk is only used here, never at import time
+
+    label = windows.days_label
+    start = scenario.start_date
+    works = {w.work_id: w for w in scenario.works}
+    lines: list[Line] = []
+
+    def span(work_id: str, s: int) -> tuple[int, int]:
+        return s, s + works[work_id].modes[0].duration_days - 1
+
+    # 1. the shared trench
+    w104, t221 = works["W-104"], works["T-221"]
+    open_cut = [next(m.duration_days for m in w.modes if m.mode == Mode.open_cut) for w in (w104, t221)]
+    first = max(w104.earliest_start, t221.earliest_start)
+    last_end = min(w104.latest_end, t221.latest_end)
+    common = next((s for s in range(first, last_end + 1) if s + max(open_cut) - 1 <= last_end), None)
+    if common is None:
+        lines.append(("FAIL", "W-104 and T-221 have no common dates for one trench."))
+        trench_end = None
+    else:
+        trench_end = common + max(open_cut) - 1
+        text = f"W-104 and T-221 can share one trench on {label(start, common, trench_end)}"
+        if (common, trench_end) == (8, 13):
+            lines.append(("PASS", text + "."))
+        else:
+            lines.append(("FAIL", text + f" (days {common} to {trench_end}); expected days 8 to 13."))
+
+    # 2. after the trench
+    g310 = first_fit(works["G-310"], set(), after=13)
+    r501 = first_fit(works["R-501"], set(), after=span("G-310", g310)[1]) if g310 is not None else None
+    if g310 is None or r501 is None:
+        lines.append(("FAIL", "After the trench, " + ("G-310" if g310 is None else "R-501") + " has no room before day 27."))
+    else:
+        a, b = span("G-310", g310), span("R-501", r501)
+        lines.append(("PASS", f"After the trench, G-310 fits on {label(start, *a)} and R-501 on {label(start, *b)}."))
+
+    # 3. the procession
+    event = next(w for w in scenario.risk_windows if w.window_id == "EV-DEMO")
+    touched = sorted(w.work_id for w in scenario.works if set(w.segment_ids) & set(event.segment_ids))
+    blocked = {12, 13, 18}
+    stuck = [i for i in touched if first_fit(works[i], blocked) is None]
+    d412 = first_fit(works["D-412"], blocked)
+    p118 = first_fit(works["P-118"], blocked, after=span("D-412", d412)[1]) if d412 is not None else None
+    if touched != ["D-412", "P-118", "W-118"]:
+        lines.append(("FAIL", "The procession touches " + ", ".join(touched) + ", not D-412, P-118 and W-118."))
+    elif stuck:
+        lines.append(("FAIL", ", ".join(stuck) + " has no room around the rain and the procession (days 12, 13 and 18)."))
+    elif p118 is None:
+        lines.append(("FAIL", "P-118 has no room after D-412 around the rain and the procession."))
+    else:
+        lines.append(("PASS", "D-412, P-118 and W-118 all fit around the rain and the procession; D-412 then P-118 fit one after the other."))
+
+    # 4. the rain
+    ov1 = windows.RiskWindow(window_id="OV-1", kind="rain", start_day=12, end_day=13, segment_ids=[], value=70.0,
+                             source="override", label="Heavy rain, 14\u201315 Nov")
+    found = {w.window_id: w for w in windows.compute_risk_windows(scenario, "fixture", [ov1])}
+    low = {s.segment_id for s in scenario.segments if s.low_lying}
+    hit = agent.affected_works(scenario, _old_way(scenario), list(found.values()))
+    munchur = [i for i in hit if "Munchur" in works[i].road_name]
+    if "OV-1" not in found or set(found["OV-1"].segment_ids) != low:
+        lines.append(("FAIL", "The simulated rain does not cover exactly the low-lying segments."))
+    elif hit != ["D-412", "P-118", "W-118"] or munchur:
+        lines.append(("FAIL", "The simulated rain hits " + (", ".join(hit) or "no works") + ", not D-412, P-118 and W-118."))
+    else:
+        lines.append(("PASS", f"The simulated rain covers {len(low)} low-lying segments and hits only D-412, P-118 and W-118, no Munchur Road work."))
+
+    # 5. the forecast
+    heavy = costs.policy()["risk"]["heavy_rain_mm_24h"]
+    days = weather.fixture_days()
+    summary = windows.daily_summary(scenario, "fixture", 8, 13)
+    problems = []
+    if summary != {"max_rain_mm": 18.0, "max_aqi": 88, "band": "Satisfactory"}:
+        problems.append(f"days 8 to 13 give {summary}")
+    if not all(days[i].aqi == 205 and weather.aqi_mod.band(days[i].aqi) == "Poor" for i in (26, 27)):
+        problems.append("days 26 and 27 are not AQI 205 (Poor)")
+    if any(d.rain_mm >= heavy for d in days):
+        problems.append("a day reaches heavy rain")
+    if problems:
+        lines.append(("FAIL", "Demo forecast: " + "; ".join(problems) + "."))
+    else:
+        lines.append(("PASS", f"Demo forecast: days 8 to 13 have at most {summary['max_rain_mm']} mm of rain and AQI {summary['max_aqi']} ({summary['band']}); days 26 and 27 have AQI 205 (Poor); no day reaches heavy rain."))
+
+    # 6. today
+    t230 = next((a for a in _old_way(scenario).assignments if a.work_id == "T-230"), None)
+    if t230 is not None and t230.start_day <= 8 <= t230.end_day:
+        lines.append(("PASS", f"T-230 is open on {label(start, 8, 8)} in the old way, so the field crew has work today."))
+    else:
+        lines.append(("FAIL", "T-230 is not open on day 8 (10 Nov) in the old way, so the field crew has no work today."))
+    return lines
+
+
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
-    lines = road_lines(demo_scenario())
+    scenario = demo_scenario()
+    lines = road_lines(scenario) + story_lines(scenario)
     show(lines)
     counts = Counter(status for status, _ in lines)
     print(f"{counts['PASS']} passed, {counts['WARN']} warnings, {counts['FAIL']} failed")
