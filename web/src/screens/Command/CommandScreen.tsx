@@ -12,6 +12,7 @@ import type { PlanMapHandle } from '../../map/PlanMap';
 import { useLiveEvent } from '../../api/live';
 import { CopilotDock } from './CopilotDock';
 import { NegotiationTab } from './NegotiationTab';
+import { WorksTab } from './WorksTab';
 import { Button, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toast, Toggle } from '../../ui';
 
 const TABS = ['negotiation', 'works', 'risk', 'approvals'] as const;
@@ -176,6 +177,8 @@ export default function CommandScreen() {
             <Tabs items={tabItems} value={tab} onChange={(id) => setParam('tab', id)} label="Plan panel" />
             {tab === 'negotiation' ? (
               <NegotiationTab onReview={() => setParam('tab', 'approvals')} />
+            ) : tab === 'works' ? (
+              <WorksTab />
             ) : (
               <p className="body" style={{ margin: 0, color: 'var(--ink-3)' }}>{PART_TWO[tab]}</p>
             )}

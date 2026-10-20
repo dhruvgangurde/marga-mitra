@@ -96,3 +96,19 @@
 .mm-app-cmd__copilot-in { position: relative; }
 .mm-app-copilot__steps { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); }
 .mm-app-copilot__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+/* Works tab */
+.mm-app-works { display: flex; flex-direction: column; gap: 12px; }
+.mm-app-works__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.mm-app-works__card { display: flex; flex-direction: column; gap: 6px; padding: 12px; text-decoration: none; color: inherit; }
+.mm-app-works__card[aria-current="true"] { background: var(--sand); }
+.mm-app-works__row { display: flex; align-items: center; gap: 8px; }
+.mm-app-works__row--split { justify-content: space-between; }
+.mm-app-works__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 0; }
+/* Works tab */
+.mm-app-works { display: flex; flex-direction: column; gap: 12px; }
+.mm-app-works__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.mm-app-works__card { display: flex; flex-direction: column; gap: 6px; padding: 12px; text-decoration: none; color: inherit; }
+.mm-app-works__card[aria-current="true"] { background: var(--sand); }
+.mm-app-works__row { display: flex; align-items: center; gap: 8px; }
+.mm-app-works__row--split { justify-content: space-between; }
+.mm-app-works__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 0; }

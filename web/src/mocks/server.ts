@@ -241,8 +241,8 @@ function statusOf(work: Work, assignment: Assignment | null): WorkStatus {
   if (verification?.result === 'verified') return 'verified';
   if (verification?.result === 'held') return 'held';
   if (work.done) return 'done';
-  if (assignment && TODAY_DAY >= assignment.start_day && TODAY_DAY <= assignment.end_day) return 'digging';
   if (assignment?.shared_group) return 'shared';
+  if (assignment && TODAY_DAY >= assignment.start_day && TODAY_DAY <= assignment.end_day) return 'digging';
   if (assignment && (assignment.start_day !== work.requested_start || assignment.mode !== work.modes[0].mode)) return 'moved';
   return 'planned';
 }
