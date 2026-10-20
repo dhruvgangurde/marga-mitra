@@ -6,7 +6,8 @@ import {
   useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanBusy, usePlanDiff, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
 } from '../../api/hooks';
 import type { Metrics } from '../../api/types';
-import { mapLegendCounts } from '../../map/geo';
+import { USE_MOCKS } from '../../api/client';
+import { clashPoints, mapLegendCounts, segmentIndex } from '../../map/geo';
 import { PlanMap } from '../../map/PlanMap';
 import type { PlanMapHandle } from '../../map/PlanMap';
 import { useLiveEvent } from '../../api/live';
@@ -152,6 +153,18 @@ export default function CommandScreen() {
         break;
     }
   };
+
+  // Development only, on the real server: the map's own clash rules must agree with the plan's count.
+  const clashWarned = useRef(false);
+  useEffect(() => {
+    if (!import.meta.env.DEV || USE_MOCKS || clashWarned.current || !metrics || !segments || views.length === 0) return;
+    const found = clashPoints(views, segmentIndex(segments.features)).features.length;
+    if (found !== metrics.clashes) {
+      clashWarned.current = true;
+      // eslint-disable-next-line no-console
+      console.warn(`Map clashes ${found} \u2260 plan clashes ${metrics.clashes}`);
+    }
+  }, [metrics, segments, views]);
 
   // A link to a work that is not in this plan is dropped, with one note.
   const missing = useRef<string | null>(null);

@@ -76,9 +76,12 @@ const pickShown = (plans: Plan[]): Plan | undefined =>
 // ---------- queries ----------
 export const useHealth = () => useQuery({ queryKey: keys.health, queryFn: getHealth });
 
-export const useDepartments = () => useQuery({ queryKey: keys.departments, queryFn: getDepartments });
+// The roads and the departments do not change while the app is open.
+const FOREVER = { staleTime: Infinity, gcTime: Infinity } as const;
 
-export const useSegments = () => useQuery({ queryKey: keys.segments, queryFn: () => getSegments() });
+export const useDepartments = () => useQuery({ queryKey: keys.departments, queryFn: getDepartments, ...FOREVER });
+
+export const useSegments = () => useQuery({ queryKey: keys.segments, queryFn: () => getSegments(), ...FOREVER });
 
 export const useWorks = (planId?: string) => useQuery({ queryKey: keys.works(planId), queryFn: () => getWorks(planId) });
 

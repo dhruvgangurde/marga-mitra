@@ -8,8 +8,16 @@ const M_PER_DEG = 111320; // 1° of latitude, in metres
 
 export type SegmentIndex = Map<string, SegmentFeature>;
 
+// One lookup per list of segments, built once, so no work searches the list.
+const INDEXES = new WeakMap<SegmentFeature[], SegmentIndex>();
+
 export function segmentIndex(segments: SegmentFeature[]): SegmentIndex {
-  return new Map(segments.map((s) => [s.properties.segment_id, s]));
+  let index = INDEXES.get(segments);
+  if (!index) {
+    index = new Map(segments.map((s) => [s.properties.segment_id, s]));
+    INDEXES.set(segments, index);
+  }
+  return index;
 }
 
 function overlap(a0: number, a1: number, b0: number, b1: number): boolean {
