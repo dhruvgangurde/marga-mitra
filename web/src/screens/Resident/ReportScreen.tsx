@@ -3,7 +3,7 @@ import { USE_MOCKS } from '../../api/client';
 import { useReportEmergency, useSegments } from '../../api/hooks';
 import type { CitizenReport, EmergencyInput } from '../../api/types';
 import {
-  Banner, Button, Card, Icon, LoadError, metresBetween, metresToLine, PhoneScreen, PhotoSlot, StatusBadge, TextField,
+  Banner, Button, Card, FocusTarget, Icon, LoadError, metresBetween, metresToLine, PhoneScreen, PhotoSlot, StatusBadge, TextField,
 } from '../../ui';
 import type { IconName } from '../../ui';
 
@@ -81,9 +81,11 @@ export default function ReportScreen() {
   if (sent) {
     return (
       <PhoneScreen title="Report" backTo="/" badge={badge} footer={<Button as="a" href="/" block>Back to the start</Button>}>
-        <Banner tone="ok" title="Report sent">
-          {sent.work_id ? `A crew is on the way. Emergency work ${sent.work_id} is open.` : 'A crew is on the way.'}
-        </Banner>
+        <FocusTarget>
+          <Banner tone="ok" title="Report sent">
+            {sent.work_id ? `A crew is on the way. Emergency work ${sent.work_id} is open.` : 'A crew is on the way.'}
+          </Banner>
+        </FocusTarget>
         <p className="small" style={HINT}>{`Report ${sent.report_id} is in the public record without your name.`}</p>
       </PhoneScreen>
     );
@@ -185,6 +187,7 @@ export default function ReportScreen() {
         type="file"
         accept="image/*"
         capture="environment"
+        aria-label="Add a photo"
         hidden
         onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
       />

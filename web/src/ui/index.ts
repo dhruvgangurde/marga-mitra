@@ -55,6 +55,8 @@ export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 export { LoadError } from './LoadError';
 export type { LoadErrorProps } from './LoadError';
+export { FocusTarget } from './FocusTarget';
+export type { FocusTargetProps } from './FocusTarget';
 export { DEPTS } from './depts';
 export type { Dept } from './depts';
 export type { IconName } from './icons';

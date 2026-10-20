@@ -5,7 +5,7 @@ import { compareLabel, dayRange, inr, metricDelta, shortTime, signedInr } from '
 import type { Approval, Tier } from '../../api/types';
 import { useRole } from '../../app/role';
 import {
-  Banner, Button, Card, DiffRow, EmptyState, LoadError, MetricTile, PhoneScreen, Skeleton, StatusBadge, StepList, TextField,
+  Banner, Button, Card, DiffRow, EmptyState, FocusTarget, LoadError, MetricTile, PhoneScreen, Skeleton, StatusBadge, StepList, TextField,
 } from '../../ui';
 
 type Decision = 'approve' | 'reject';
@@ -106,13 +106,18 @@ export default function ApprovalsScreen() {
   return (
     <PhoneScreen title="Approval" backTo="/" badge={badge} footer={footer}>
       <LoadError queries={queries} />
-      {decided?.decision === 'approve' ? (
-        <Banner tone="ok" title="Plan approved">It is in the public record. Department heads are told.</Banner>
-      ) : decided?.decision === 'reject' ? (
-        <Banner tone="info" title="Plan rejected">The scheduler will make a new plan with your reason.</Banner>
-      ) : decide.isError ? (
-        <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner>
-      ) : null}
+      {/* Always present so the decision is announced; display contents keeps the empty region out of the layout. */}
+      <div aria-live="polite" style={{ display: 'contents' }}>
+        {decided ? (
+          <FocusTarget>
+            {decided.decision === 'approve'
+              ? <Banner tone="ok" title="Plan approved">It is in the public record. Department heads are told.</Banner>
+              : <Banner tone="info" title="Plan rejected">The scheduler will make a new plan with your reason.</Banner>}
+          </FocusTarget>
+        ) : decide.isError ? (
+          <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner>
+        ) : null}
+      </div>
 
       <Card style={COLUMN}>
         <h2 className="title-l" style={{ margin: 0 }}>{approval.summary}</h2>

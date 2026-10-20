@@ -147,7 +147,7 @@ export default function FieldCaptureScreen() {
     setFailed(false);
     try {
       await verify.mutateAsync(workId);
-      navigate(`/field/${workId}/result`);
+      navigate(`/field/${workId}/result`, { state: { sent: true } });
     } catch {
       setFailed(true);
     }
@@ -172,6 +172,7 @@ export default function FieldCaptureScreen() {
           type="file"
           accept="image/*"
           capture="environment"
+          aria-label={kind === 'before' ? 'Take the before photo' : 'Take the after photo'}
           hidden
           onChange={(e) => { void onFile(kind, e.target.files?.[0]); e.target.value = ''; }}
         />

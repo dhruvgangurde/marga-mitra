@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError, USE_MOCKS } from '../../api/client';
 import { useEvidence, useVerification, useWork } from '../../api/hooks';
 import { dateTimeLabel, inr } from '../../api/format';
 import type { CheckName, CheckStatus, Evidence, VerificationCheck } from '../../api/types';
 import {
-  Button, Card, EmptyState, LoadError, PhoneScreen, PhotoSlot, Seal, Skeleton, StatusBadge, StepList,
+  Button, Card, EmptyState, FocusTarget, LoadError, PhoneScreen, PhotoSlot, Seal, Skeleton, StatusBadge, StepList,
 } from '../../ui';
 import { isStateName, RESULT_STATES } from './resultStates';
 import type { ResultState } from './resultStates';
@@ -72,6 +72,7 @@ function photo(label: string, alt: string, e: Evidence | undefined) {
 export default function FieldResultScreen() {
   const { workId = '' } = useParams();
   const [search] = useSearchParams();
+  const sentHere = (useLocation().state as { sent?: boolean } | null)?.sent === true;
   const work = useWork(workId);
   const verification = useVerification(workId);
   const evidenceQuery = useEvidence(workId);
@@ -116,17 +117,20 @@ export default function FieldResultScreen() {
   return (
     <PhoneScreen title="Result" backTo="/field" badge={badge} footer={<Button as="a" href="/field" block>Back to my works</Button>}>
       <LoadError queries={queries} />
-      <div
-        className="mm-dotgrid"
-        aria-live="polite"
-        style={{
-          borderRadius: 'var(--radius-xl)', border: 'var(--stroke-ui) solid var(--ink)', padding: '20px 16px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
-        }}
-      >
-        {/* Keyed by the result so the seal stamps once, and again only when the result changes. */}
-        <Outcome key={result} shown={shown} />
-      </div>
+      {/* Focus lands on the outcome only when the crew just sent the photos from the previous screen. */}
+      <FocusTarget focus={sentHere}>
+        <div
+          className="mm-dotgrid"
+          aria-live="polite"
+          style={{
+            borderRadius: 'var(--radius-xl)', border: 'var(--stroke-ui) solid var(--ink)', padding: '20px 16px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
+          }}
+        >
+          {/* Keyed by the result so the seal stamps once, and again only when the result changes. */}
+          <Outcome key={result} shown={shown} />
+        </div>
+      </FocusTarget>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {photo('Before', 'Before photo: open trench', latest('before'))}

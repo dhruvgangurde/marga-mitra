@@ -79,23 +79,20 @@ export default function RecordScreen() {
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', width: '100%' }}>
           <Button variant="primary" disabled={verify.isPending} onClick={() => verify.mutate()}>Check the record</Button>
-          {verify.isError ? (
-            <div style={{ flex: '1 1 420px', minWidth: 0 }} aria-live="polite">
+          {/* Always present, so the check result is announced when it arrives. */}
+          <div aria-live="polite" style={verify.isError || result ? { flex: '1 1 420px', minWidth: 0 } : undefined}>
+            {verify.isError ? (
               <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner>
-            </div>
-          ) : result ? (
-            <div style={{ flex: '1 1 420px', minWidth: 0 }} aria-live="polite">
-              {result.ok ? (
-                <Banner tone="ok" title="Record checked">{`${result.entries} entries. Nothing was changed.`}</Banner>
-              ) : (
-                <Banner tone="danger" title="The record was changed">
-                  {`Entry #${result.first_bad_seq} no longer matches what was written, so every entry after it is unlinked.`}
-                </Banner>
-              )}
-            </div>
-          ) : (
-            <span className="small" style={{ color: 'var(--ink-3)' }}>Anyone can run this check.</span>
-          )}
+            ) : result?.ok ? (
+              <Banner tone="ok" title="Record checked">{`${result.entries} entries. Nothing was changed.`}</Banner>
+            ) : result ? (
+              <Banner tone="danger" title="The record was changed">
+                {`Entry #${result.first_bad_seq} no longer matches what was written, so every entry after it is unlinked.`}
+              </Banner>
+            ) : (
+              <span className="small" style={{ color: 'var(--ink-3)' }}>Anyone can run this check.</span>
+            )}
+          </div>
         </div>
         {loading ? <div style={{ width: '100%' }}><Skeleton height={120} /></div> : queries.some((q) => q.isError) ? null : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, width: '100%' }}>

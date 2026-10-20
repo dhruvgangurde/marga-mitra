@@ -5,7 +5,7 @@ import { useConfirmRoad, useEvidence, useUploadEvidence, useWork, useWorks } fro
 import { dayLabel } from '../../api/format';
 import type { Evidence } from '../../api/types';
 import {
-  Banner, Button, Card, DeptChip, EmptyState, LoadError, PhoneScreen, PhotoSlot, Skeleton, StatusBadge,
+  Banner, Button, Card, DeptChip, EmptyState, FocusTarget, LoadError, PhoneScreen, PhotoSlot, Skeleton, StatusBadge,
 } from '../../ui';
 
 type Stage = 'asking' | 'notyet' | 'sent-yes' | 'sent-notyet';
@@ -62,6 +62,8 @@ export default function ConfirmScreen() {
   const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
   const [failed, setFailed] = useState(false);
   const [sending, setSending] = useState(false);
+  // Only an answer sent on this page moves focus; the ?answer= screenshot states leave it alone.
+  const [justSent, setJustSent] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const urls = useRef<string[]>([]);
 
@@ -115,6 +117,7 @@ export default function ConfirmScreen() {
       await confirm.mutateAsync({
         work_id: workId, answer, problems: answer === 'notyet' ? PROBLEMS.filter((p) => problems.includes(p)) : [], lat: place?.lat, lon: place?.lon,
       });
+      setJustSent(true);
       setStage(answer === 'yes' ? 'sent-yes' : 'sent-notyet');
     } catch {
       setFailed(true);
@@ -181,6 +184,7 @@ export default function ConfirmScreen() {
             type="file"
             accept="image/*"
             capture="environment"
+            aria-label="Add a photo"
             hidden
             onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
           />
@@ -189,11 +193,12 @@ export default function ConfirmScreen() {
         </>
       ) : null}
 
-      {stage === 'sent-yes' ? (
-        <Banner tone="ok" title="Thank you">Your answer is in the public record. The contractor&apos;s deposit can now be released.</Banner>
-      ) : null}
-      {stage === 'sent-notyet' ? (
-        <Banner tone="info" title="Thank you">The crew is asked to come back. The deposit stays held until the road is restored.</Banner>
+      {answered ? (
+        <FocusTarget focus={justSent}>
+          {stage === 'sent-yes'
+            ? <Banner tone="ok" title="Thank you">Your answer is in the public record. The contractor&apos;s deposit can now be released.</Banner>
+            : <Banner tone="info" title="Thank you">The crew is asked to come back. The deposit stays held until the road is restored.</Banner>}
+        </FocusTarget>
       ) : null}
 
       <p className="small" style={HINT}>We do not ask for your name. Until a resident says yes, the contractor&apos;s deposit stays held.</p>
