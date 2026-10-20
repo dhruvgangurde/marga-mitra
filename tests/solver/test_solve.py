@@ -2,7 +2,7 @@ from datetime import date
 
 from contracts import rules
 from contracts.fakes import tiny_scenario
-from contracts.models import Mode, Plan, RiskKind, RiskWindow, Scenario, SolveConstraints
+from contracts.models import Mode, ParallelGroup, Plan, RiskKind, RiskWindow, Scenario, SolveConstraints
 from solver.metrics import compute_metrics
 from solver.solve import solve
 
@@ -86,6 +86,21 @@ def test_shared_trench():
     assert w.reason == "Shares one trench with Telecom T-001."
     apart = run(s, SolveConstraints(shared_groups=["G1"], use_risk=False, use_groups=False))
     assert compute_metrics(plan, s).cost_inr < compute_metrics(apart, s).cost_inr
+
+
+def test_an_overlapping_group_is_skipped_with_a_note():
+    s = tiny_scenario()
+    s.parallel_groups.append(ParallelGroup(group_id="G2", work_ids=["T-001", "G-001"],
+                                           segment_ids=["S-0001", "S-0002", "S-0003"], saving_inr=1000))
+    plan = run(s, SolveConstraints(shared_groups=["G1", "G2"], use_risk=False))
+    a = by_id(plan)
+    assert a["W-001"].shared_group == a["T-001"].shared_group == "G1"
+    assert a["G-001"].shared_group is None
+    assert "G2 was not used: T-001 is already in G1." in plan.notes
+
+
+def test_same_default_solve_twice_same_assignments():
+    assert solve(tiny_scenario(1), SolveConstraints()).assignments == solve(tiny_scenario(1), SolveConstraints()).assignments
 
 
 def test_groups_off_or_unknown_share_nothing():
