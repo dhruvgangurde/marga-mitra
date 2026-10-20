@@ -35,7 +35,10 @@ function reusedFrom(checks: VerificationCheck[]): string {
   return detail.match(/\b[A-Z]-\d+\b/)?.[0] ?? 'another work';
 }
 
-function Outcome({ shown }: { shown: ResultState | null }) {
+const WAITING_FOR_AFTER = 'Waiting for the after photo';
+const noStop = (text: string) => text.replace(/\.$/, '');
+
+function Outcome({ shown, workId }: { shown: ResultState | null; workId: string }) {
   switch (shown?.result) {
     case 'verified':
       return (
@@ -44,20 +47,58 @@ function Outcome({ shown }: { shown: ResultState | null }) {
           <p className="title-l" style={{ margin: 0 }}>{`Repair verified. ${inr(shown.deposit_inr)} released to the contractor.`}</p>
         </>
       );
-    case 'held':
+    case 'held': {
+      const failed = shown.checks.find((c) => c.status === 'fail');
+      const text = !failed || failed.name === 'reuse'
+        ? `Photo reused from work ${reusedFrom(shown.checks)}. Money held. Inspector called.`
+        : `${noStop(failed.detail)}. Money held. Inspector called.`;
       return (
         <>
           <Seal kind="held" size={112} stamp>Money held</Seal>
-          <p className="title-l" style={{ margin: 0 }}>{`Photo reused from work ${reusedFrom(shown.checks)}. Money held. Inspector called.`}</p>
+          <p className="title-l" style={{ margin: 0 }}>{text}</p>
         </>
       );
-    case 'inspect':
+    }
+    case 'inspect': {
+      const repairUnsure = shown.checks.some((c) => c.name === 'repair' && c.status === 'warn');
+      const why = shown.checks.find((c) => c.name !== 'resident' && (c.status === 'warn' || c.status === 'pending'));
       return (
         <>
           <Seal kind="inspect" size={112} stamp>Needs inspector</Seal>
-          <p className="title-l" style={{ margin: 0 }}>The repair check is not sure. An inspector visits within 2 days.</p>
+          {repairUnsure ? (
+            <p className="title-l" style={{ margin: 0 }}>The repair check is not sure. An inspector visits within 2 days.</p>
+          ) : (
+            <>
+              <p className="title-l" style={{ margin: 0 }}>An inspector checks this work within 2 days.</p>
+              {why ? <p className="body" style={{ margin: 0, color: 'var(--ink-2)' }}>{why.detail}</p> : null}
+            </>
+          )}
         </>
       );
+    }
+    case 'pending': {
+      if (shown.checks.every((c) => c.detail === WAITING_FOR_AFTER)) {
+        return (
+          <EmptyState
+            icon="camera"
+            text="Add the after photo first."
+            action={<Button variant="secondary" as="a" href={`/field/${workId}`}>Take the photos</Button>}
+          />
+        );
+      }
+      const resident = shown.checks.find((c) => c.name === 'resident');
+      return (
+        <div style={{ alignSelf: 'stretch', textAlign: 'left' }}>
+          <StepList
+            steps={[
+              { text: 'Place, time and photo checks', detail: 'Passed', status: 'done' },
+              { text: 'A resident confirms the road', detail: resident?.detail, status: 'waiting' },
+              { text: 'Money released', detail: inr(shown.deposit_inr), status: 'waiting' },
+            ]}
+          />
+        </div>
+      );
+    }
     default:
       return <StepList steps={[{ text: 'Checking place, time and photo reuse', status: 'running' }]} />;
   }
@@ -84,17 +125,25 @@ export default function FieldResultScreen() {
   const asked = search.get('result');
   const shown: ResultState | null = USE_MOCKS && isStateName(asked) ? RESULT_STATES[asked] : verification.data ?? null;
   const result = shown?.result ?? 'pending';
+  const hasResult = shown != null;
   const { refetch } = verification;
 
-  // Poll only while a send from this session waits for its result, and stop a minute after the send.
+  // Poll only while a send from this session waits for its first result, and stop a minute after the send.
   useEffect(() => {
-    if (sentAt == null || result !== 'pending') return;
+    if (sentAt == null || hasResult) return;
     const poll = setInterval(() => void refetch(), 2000);
     const stop = setTimeout(() => { clearInterval(poll); setTimedOut(true); }, Math.max(0, sentAt + 60000 - Date.now()));
     return () => { clearInterval(poll); clearTimeout(stop); };
-  }, [sentAt, result, refetch]);
+  }, [sentAt, hasResult, refetch]);
 
-  const stillChecking = timedOut && result === 'pending' ? (
+  // A pending result also asks again every 15 s; the live result usually comes first.
+  useEffect(() => {
+    if (!hasResult || result !== 'pending') return;
+    const poll = setInterval(() => void refetch(), 15000);
+    return () => clearInterval(poll);
+  }, [hasResult, result, refetch]);
+
+  const stillChecking = timedOut && !hasResult ? (
     <Banner tone="warn" title="Still checking" action={<Button variant="ghost" onClick={() => void refetch()}>Try again</Button>}>
       This is taking longer than usual.
     </Banner>
@@ -102,7 +151,7 @@ export default function FieldResultScreen() {
 
   const latest = (kind: Evidence['kind']) => evidence.filter((e) => e.kind === kind).at(-1);
   const badge = <span className="mono" style={{ color: 'var(--ink-3)' }}>{workId}</span>;
-  const loading = work.isLoading || verification.isLoading;
+  const loading = work.isLoading || verification.isLoading || evidenceQuery.isLoading;
 
   if (loading || !shown) {
     const unknown = work.error instanceof ApiError && work.error.status === 404;
@@ -122,7 +171,7 @@ export default function FieldResultScreen() {
       body = (
         <>
           {stillChecking}
-          <Outcome shown={null} />
+          <Outcome shown={null} workId={workId} />
         </>
       );
     } else {
@@ -146,7 +195,7 @@ export default function FieldResultScreen() {
           }}
         >
           {/* Keyed by the result so the seal stamps once, and again only when the result changes. */}
-          <Outcome key={result} shown={shown} />
+          <Outcome key={result} shown={shown} workId={workId} />
         </div>
       </FocusTarget>
 

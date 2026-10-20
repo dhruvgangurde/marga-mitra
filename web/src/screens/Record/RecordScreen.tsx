@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { USE_MOCKS } from '../../api/client';
+import { getLedger } from '../../api/endpoints';
 import { useAuditorFlags, useLedger, useNoDig, useVerifyLedger, useWorks } from '../../api/hooks';
 import { actorLabel, linkLabel, shortTime, timeLabel } from '../../api/format';
 import type { LedgerEntry, NoDigEntry } from '../../api/types';
-import { Banner, Button, Card, DataTable, EmptyState, LoadError, MetricTile, Skeleton, StatusBadge, Tag } from '../../ui';
+import {
+  Banner, Button, Card, DataTable, EmptyState, isMissing, LoadError, MetricTile, problemText, Skeleton, StatusBadge, Tag,
+} from '../../ui';
+import type { Problem } from '../../ui';
 
 const MOST_SHOWN = 500;
 const COLUMN = { display: 'flex', flexDirection: 'column', gap: 16 } as const;
 const HALF = { flex: '1 1 520px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 } as const;
+const EMPTY_NOTE = { margin: 0, color: 'var(--ink-3)' } as const;
 const untilDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
 
 const LEDGER_COLUMNS = [
@@ -31,6 +36,13 @@ function workOf(e: LedgerEntry): string {
   return typeof e.payload.work_id === 'string' ? e.payload.work_id : '—';
 }
 
+// Newest first, one row per entry; an earlier list wins over a later one.
+function mergeBySeq(...lists: LedgerEntry[][]): LedgerEntry[] {
+  const bySeq = new Map<number, LedgerEntry>();
+  lists.forEach((list) => list.forEach((e) => { if (!bySeq.has(e.seq)) bySeq.set(e.seq, e); }));
+  return [...bySeq.values()].sort((a, b) => b.seq - a.seq);
+}
+
 // One row per road name: the first entry of each name.
 function byRoad(list: NoDigEntry[]): NoDigEntry[] {
   return list.filter((e, i) => list.findIndex((x) => x.name === e.name) === i);
@@ -38,24 +50,54 @@ function byRoad(list: NoDigEntry[]): NoDigEntry[] {
 
 export default function RecordScreen() {
   const [search] = useSearchParams();
-  const [limit, setLimit] = useState(10);
-  const ledger = useLedger(limit);
+  // Showing all asks for the newest 500, so new entries keep every row in view.
+  const [showAll, setShowAll] = useState(false);
+  const ledger = useLedger(showAll ? MOST_SHOWN : 10);
   const works = useWorks();
   const noDig = useNoDig();
   const flags = useAuditorFlags();
   const verify = useVerifyLedger();
-  // Keeps the last rows on screen while a bigger page loads.
+  // Pages older than the newest 500, fetched on request.
+  const [older, setOlder] = useState<LedgerEntry[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderProblem, setOlderProblem] = useState<Problem | null>(null);
+  // Keeps the last rows on screen while a bigger page loads. With older pages open it also keeps
+  // the entries that new ones push out of the newest 500, so no row goes missing in between.
   const shownRows = useRef<LedgerEntry[]>([]);
   const checkedOnce = useRef(false);
+  const lastTotal = useRef(0);
 
-  if (ledger.data) shownRows.current = ledger.data;
+  if (ledger.data) shownRows.current = older.length ? mergeBySeq(ledger.data, shownRows.current, older) : ledger.data;
   const entries = shownRows.current;
   const total = entries[0]?.seq ?? 0;
+  const oldest = entries.at(-1)?.seq ?? 1;
   const roads = byRoad(noDig.data ?? []);
+  const notes = flags.data ?? [];
   const result = verify.data;
-  const queries = [ledger, works, noDig, flags];
+  const checkProblem = verify.isError ? problemText(verify.error) : null;
+  const queries = [ledger, works, noDig, flags].filter((q) => !isMissing(q.error));
   const ledgerLoading = ledger.isLoading && entries.length === 0;
   const loading = ledgerLoading || works.isLoading || noDig.isLoading || flags.isLoading;
+
+  // A new entry makes an old check result name the wrong count, so it goes.
+  const resetCheck = verify.reset;
+  useEffect(() => {
+    if (lastTotal.current !== 0 && lastTotal.current !== total) resetCheck();
+    lastTotal.current = total;
+  }, [total, resetCheck]);
+
+  async function showOlder() {
+    setLoadingOlder(true);
+    setOlderProblem(null);
+    try {
+      const page = await getLedger({ limit: MOST_SHOWN, beforeSeq: oldest });
+      setOlder((list) => mergeBySeq(list, page));
+    } catch (error) {
+      setOlderProblem(problemText(error));
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
 
   const runCheck = verify.mutate;
   useEffect(() => {
@@ -81,8 +123,8 @@ export default function RecordScreen() {
           <Button variant="primary" disabled={verify.isPending} onClick={() => verify.mutate()}>Check the record</Button>
           {/* Always present, so the check result is announced when it arrives. */}
           <div aria-live="polite" style={verify.isError || result ? { flex: '1 1 420px', minWidth: 0 } : undefined}>
-            {verify.isError ? (
-              <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner>
+            {checkProblem ? (
+              <Banner tone="danger" title={checkProblem.title}>{checkProblem.text}</Banner>
             ) : result?.ok ? (
               <Banner tone="ok" title="Record checked">{`${result.entries} entries. Nothing was changed.`}</Banner>
             ) : result ? (
@@ -99,14 +141,15 @@ export default function RecordScreen() {
           <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Entries" value={total} /></div>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Works this month" value={works.data?.length ?? 0} /></div>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Protected roads" value={roads.length} /></div>
-          <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Auditor notes" value={flags.data?.length ?? 0} /></div>
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Auditor notes" value={notes.length} /></div>
         </div>
         )}
       </section>
 
       <section style={COLUMN}>
         <h2 className="display-3" style={{ margin: 0 }}>Latest entries</h2>
-        {ledgerLoading ? <Skeleton height={120} /> : entries.length === 0 && ledger.isError ? null : entries.length === 0 ? (
+        {/* About the height of the first 10 rows, so the sections below stay put when they arrive. */}
+        {ledgerLoading ? <Skeleton height={458} /> : entries.length === 0 && ledger.isError ? null : entries.length === 0 ? (
           <EmptyState icon="eye" text="The record is empty." action={<Button as="a" href="/command">Open command centre</Button>} />
         ) : (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
@@ -119,9 +162,16 @@ export default function RecordScreen() {
           />
         </Card>
         )}
-        {entries.length < Math.min(total, MOST_SHOWN) ? (
-          <div><Button variant="ghost" onClick={() => setLimit(Math.min(total, MOST_SHOWN))}>{`Show all ${total} entries`}</Button></div>
+        {!showAll && entries.length < total ? (
+          <div><Button variant="ghost" onClick={() => setShowAll(true)}>{`Show all ${total} entries`}</Button></div>
+        ) : total > MOST_SHOWN && oldest > 1 ? (
+          <div>
+            <Button variant="ghost" disabled={loadingOlder} onClick={() => void showOlder()}>
+              {loadingOlder ? 'Loading…' : 'Show older entries'}
+            </Button>
+          </div>
         ) : null}
+        {olderProblem ? <Banner tone="danger" title={olderProblem.title}>{olderProblem.text}</Banner> : null}
       </section>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, alignItems: 'flex-start' }}>
@@ -130,7 +180,9 @@ export default function RecordScreen() {
           <p className="body" style={{ margin: 0, color: 'var(--ink-2)' }}>
             No new digs on these roads until the date shown. Emergencies are allowed and reviewed after.
           </p>
-          {noDig.isLoading ? <Skeleton height={120} /> : noDig.isError ? null : (
+          {noDig.isLoading ? <Skeleton height={120} /> : noDig.isError ? null : roads.length === 0 ? (
+            <p className="body" style={EMPTY_NOTE}>No protected roads yet.</p>
+          ) : (
             <Card style={{ padding: 0, overflowX: 'auto' }}>
               <DataTable
                 caption="Protected-road list"
@@ -147,7 +199,10 @@ export default function RecordScreen() {
             The auditor reads every entry and flags anything a person should look at.
           </p>
           {flags.isLoading ? <Skeleton height={120} /> : null}
-          {(flags.data ?? []).map((f) => (
+          {!flags.isLoading && notes.length === 0 && (isMissing(flags.error) || !flags.isError)
+            ? <p className="body" style={EMPTY_NOTE}>No notes yet.</p>
+            : null}
+          {notes.map((f) => (
             <Card key={f.flag_id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <StatusBadge status={f.severity}>{f.word}</StatusBadge>
