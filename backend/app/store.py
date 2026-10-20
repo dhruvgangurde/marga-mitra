@@ -172,8 +172,9 @@ def add_approval(s: Session, approval: Approval) -> None:
     s.flush()
 
 
-def get_approval(s: Session, approval_id: str) -> Approval | None:
-    row = s.get(ApprovalRow, approval_id)
+def get_approval(s: Session, approval_id: str, lock: bool = False) -> Approval | None:
+    """lock: hold the row until the transaction ends, so two people cannot decide the same approval."""
+    row = s.get(ApprovalRow, approval_id, with_for_update=lock)
     return Approval.model_validate(row.data) if row else None
 
 

@@ -1,7 +1,8 @@
 """Request and response bodies that only the API uses; every shared shape lives in contracts.models."""
 from datetime import date
+from typing import Literal, Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class Health(BaseModel):
@@ -23,3 +24,31 @@ class Department(BaseModel):
     name: str
     icon: str
     color_token: str
+
+
+class _Days(BaseModel):
+    start_day: int = Field(ge=0, le=27)
+    end_day: int = Field(ge=0, le=27)
+
+    @model_validator(mode="after")
+    def _in_order(self) -> Self:
+        if self.end_day < self.start_day:
+            raise ValueError("end_day must not be before start_day")
+        return self
+
+
+class ForecastOverride(_Days):
+    kind: Literal["rain", "air"]
+    value: float
+    label: str | None = None
+
+
+class EventIn(_Days):
+    label: str
+    segment_ids: list[str] = Field(min_length=1)
+
+
+class ApprovalDecision(BaseModel):
+    decision: Literal["approve", "reject"]
+    by: str
+    reason: str | None = None
