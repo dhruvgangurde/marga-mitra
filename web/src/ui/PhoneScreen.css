@@ -10,3 +10,6 @@
 /* A 44 px touch area around the 36 px back button. */
 .ph-bar .mm-iconbtn { position: relative; }
 .ph-bar .mm-iconbtn::after { content: ''; position: absolute; inset: -4px; }
+/* The 36 px secondary and danger buttons get a 44 px touch area; nothing changes visually. */
+.ph-foot .mm-btn--secondary, .ph-foot .mm-btn--danger { position: relative; }
+.ph-foot .mm-btn--secondary::after, .ph-foot .mm-btn--danger::after { content: ''; position: absolute; inset: -4px 0; }

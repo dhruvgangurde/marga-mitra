@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { USE_MOCKS } from '../../api/client';
-import { useEvidence, useVerification } from '../../api/hooks';
+import type { ReactNode } from 'react';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { ApiError, USE_MOCKS } from '../../api/client';
+import { useEvidence, useVerification, useWork } from '../../api/hooks';
 import { dateTimeLabel, inr } from '../../api/format';
 import type { CheckName, CheckStatus, Evidence, VerificationCheck } from '../../api/types';
-import { Button, Card, PhoneScreen, PhotoSlot, Seal, StatusBadge, StepList } from '../../ui';
+import {
+  Button, Card, EmptyState, FocusTarget, LoadError, PhoneScreen, PhotoSlot, Seal, Skeleton, StatusBadge, StepList,
+} from '../../ui';
 import { isStateName, RESULT_STATES } from './resultStates';
 import type { ResultState } from './resultStates';
 
@@ -63,14 +66,18 @@ function Outcome({ shown }: { shown: ResultState | null }) {
 function photo(label: string, alt: string, e: Evidence | undefined) {
   return e
     ? <PhotoSlot label={label} src={e.file_url} alt={alt} meta={dateTimeLabel(e.taken_at ?? e.uploaded_at)} />
-    : <PhotoSlot label={label} />;
+    : <Card soft><p className="small" style={{ margin: 0, color: 'var(--ink-3)' }}>No photo yet</p></Card>;
 }
 
 export default function FieldResultScreen() {
   const { workId = '' } = useParams();
   const [search] = useSearchParams();
+  const sentHere = (useLocation().state as { sent?: boolean } | null)?.sent === true;
+  const work = useWork(workId);
   const verification = useVerification(workId);
-  const evidence = useEvidence(workId).data ?? [];
+  const evidenceQuery = useEvidence(workId);
+  const queries = [work, verification, evidenceQuery];
+  const evidence = evidenceQuery.data ?? [];
 
   const asked = search.get('result');
   const shown: ResultState | null = USE_MOCKS && isStateName(asked) ? RESULT_STATES[asked] : verification.data ?? null;
@@ -78,42 +85,63 @@ export default function FieldResultScreen() {
   const { refetch } = verification;
 
   useEffect(() => {
-    if (result !== 'pending') return;
+    if (!shown || result !== 'pending') return;
     const id = setInterval(() => void refetch(), 2000);
     return () => clearInterval(id);
-  }, [result, refetch]);
+  }, [shown, result, refetch]);
 
   const latest = (kind: Evidence['kind']) => evidence.filter((e) => e.kind === kind).at(-1);
+  const badge = <span className="mono" style={{ color: 'var(--ink-3)' }}>{workId}</span>;
+  const loading = work.isLoading || verification.isLoading;
+
+  if (loading || !shown) {
+    const unknown = work.error instanceof ApiError && work.error.status === 404;
+    let body: ReactNode;
+    if (loading) {
+      body = (
+        <>
+          <Skeleton height={96} />
+          <Skeleton height={240} />
+        </>
+      );
+    } else if (unknown) {
+      body = <EmptyState icon="hardhat" text={`We could not find work ${workId}.`} action={<Button as="a" href="/field">Back to my works</Button>} />;
+    } else if (queries.some((q) => q.isError)) {
+      body = <LoadError queries={queries} />;
+    } else {
+      body = <EmptyState icon="camera" text="No result yet. Send the photos first." action={<Button as="a" href={`/field/${workId}`}>Take the photos</Button>} />;
+    }
+    return <PhoneScreen title="Result" backTo="/field" badge={badge} busy={loading}>{body}</PhoneScreen>;
+  }
 
   return (
-    <PhoneScreen
-      title="Result"
-      backTo="/field"
-      badge={<span className="mono" style={{ color: 'var(--ink-3)' }}>{workId}</span>}
-      footer={<Button as="a" href="/field" block>Back to my works</Button>}
-    >
-      <div
-        className="mm-dotgrid"
-        aria-live="polite"
-        style={{
-          borderRadius: 'var(--radius-xl)', border: 'var(--stroke-ui) solid var(--ink)', padding: '20px 16px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
-        }}
-      >
-        {/* Keyed by the result so the seal stamps once, and again only when the result changes. */}
-        <Outcome key={result} shown={shown} />
-      </div>
+    <PhoneScreen title="Result" backTo="/field" badge={badge} footer={<Button as="a" href="/field" block>Back to my works</Button>}>
+      <LoadError queries={queries} />
+      {/* Focus lands on the outcome only when the crew just sent the photos from the previous screen. */}
+      <FocusTarget focus={sentHere}>
+        <div
+          className="mm-dotgrid"
+          aria-live="polite"
+          style={{
+            borderRadius: 'var(--radius-xl)', border: 'var(--stroke-ui) solid var(--ink)', padding: '20px 16px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
+          }}
+        >
+          {/* Keyed by the result so the seal stamps once, and again only when the result changes. */}
+          <Outcome key={result} shown={shown} />
+        </div>
+      </FocusTarget>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         {photo('Before', 'Before photo: open trench', latest('before'))}
         {photo('After', 'After photo: trench closed and patched', latest('after'))}
       </div>
 
-      <Card style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '4px 16px' }}>
-        <section>
+      <section>
+        <Card style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '4px 16px' }}>
           <h2 className="mono-label" style={{ margin: '12px 0 4px', color: 'var(--ink-3)' }}>Checks</h2>
-          {(shown?.checks ?? []).map((c) => {
-            const badge = badgeFor(c);
+          {shown.checks.map((c) => {
+            const check = badgeFor(c);
             return (
               <div
                 key={c.name}
@@ -123,12 +151,12 @@ export default function FieldResultScreen() {
                   <span className="body-strong">{NAMES[c.name]}</span>
                   <span className="small" style={{ color: 'var(--ink-3)' }}>{c.detail}</span>
                 </div>
-                <StatusBadge status={badge.status}>{badge.word}</StatusBadge>
+                <StatusBadge status={check.status}>{check.word}</StatusBadge>
               </div>
             );
           })}
-        </section>
-      </Card>
+        </Card>
+      </section>
     </PhoneScreen>
   );
 }

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useWorks } from '../../api/hooks';
 import { dayLabel, dayRange, methodLabel, metres, TODAY_DAY, workStatusBadge } from '../../api/format';
 import type { WorkView } from '../../api/types';
-import { Button, Card, DeptChip, Icon, PhoneScreen, StatusBadge } from '../../ui';
+import { Button, DeptChip, EmptyState, LoadError, PhoneScreen, Skeleton, StatusBadge } from '../../ui';
 
 const onSiteToday = (v: WorkView) =>
   v.status === 'held' || (v.assignment != null && v.assignment.start_day <= TODAY_DAY && TODAY_DAY <= v.assignment.end_day);
@@ -12,16 +12,19 @@ export default function FieldListScreen() {
   const list = (works.data ?? []).filter(onSiteToday).sort((a, b) => a.work.work_id.localeCompare(b.work.work_id));
 
   return (
-    <PhoneScreen title="My works" backTo="/" badge={<StatusBadge status="live">{dayLabel(TODAY_DAY)}</StatusBadge>}>
+    <PhoneScreen title="My works" backTo="/" badge={<StatusBadge status="live">{dayLabel(TODAY_DAY)}</StatusBadge>} busy={works.isLoading}>
       <p className="small" style={{ margin: 0, color: 'var(--ink-3)' }}>
         Works on site today. Take a before photo when you start and an after photo when the road is patched.
       </p>
-      {works.isLoading ? null : list.length === 0 ? (
-        <Card soft style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
-          <Icon name="hardhat" size={24} />
-          <p className="body-l" style={{ margin: 0 }}>No work on site today.</p>
-          <Button as="a" href="/record">See the public record</Button>
-        </Card>
+      {works.isLoading ? (
+        <>
+          <Skeleton height={96} />
+          <Skeleton height={240} />
+        </>
+      ) : works.isError ? (
+        <LoadError queries={[works]} />
+      ) : list.length === 0 ? (
+        <EmptyState icon="hardhat" text="No work on site today." action={<Button as="a" href="/record">See the public record</Button>} />
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {list.map(({ work, assignment, status }) => {
