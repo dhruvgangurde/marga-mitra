@@ -8,6 +8,7 @@ import {
 import type { Metrics } from '../../api/types';
 import { mapLegendCounts } from '../../map/geo';
 import { PlanMap } from '../../map/PlanMap';
+import { NegotiationTab } from './NegotiationTab';
 import { Button, CopilotBar, Icon, MapLegend, MetricTile, Tabs, TimelineSlider, Toggle } from '../../ui';
 
 const TABS = ['negotiation', 'works', 'risk', 'approvals'] as const;
@@ -133,7 +134,11 @@ export default function CommandScreen() {
           <div className="mm-folder__tab"><Icon name="handshake" size={16} />Plan for 2–29 Nov</div>
           <div className="mm-folder__body mm-app-cmd__body">
             <Tabs items={tabItems} value={tab} onChange={(id) => setParam('tab', id)} label="Plan panel" />
-            <p className="body" style={{ margin: 0, color: 'var(--ink-3)' }}>{PART_TWO[tab]}</p>
+            {tab === 'negotiation' ? (
+              <NegotiationTab onReview={() => setParam('tab', 'approvals')} />
+            ) : (
+              <p className="body" style={{ margin: 0, color: 'var(--ink-3)' }}>{PART_TWO[tab]}</p>
+            )}
           </div>
         </section>
       </aside>
