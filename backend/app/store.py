@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.tables import (
     ApprovalRow,
+    EvidenceRow,
     NegotiationMessageRow,
     PlanRow,
     RiskWindowRow,
@@ -17,7 +18,7 @@ from backend.app.tables import (
     SegmentRow,
     WorkRow,
 )
-from contracts.models import Approval, NegotiationMessage, Plan, RiskWindow, RunResult, Scenario, Work
+from contracts.models import Approval, Evidence, NegotiationMessage, Plan, RiskWindow, RunResult, Scenario, Work
 
 # clock_timestamp(): real server time with microseconds, so rows saved in one transaction still sort
 _NOW = func.clock_timestamp
@@ -194,3 +195,31 @@ def decide_approval(s: Session, approval_id: str, status: str, by: str, reason: 
     _approval_row(row, decided)
     s.flush()
     return decided
+
+
+def db_now(s: Session) -> datetime:
+    """The database clock, so a row's time and the time in its JSON are the same value."""
+    return s.scalar(select(_NOW()))
+
+
+# ---------- photos ----------
+def add_evidence(s: Session, seed: int, ev: Evidence, rel_path: str, place_from: str, time_from: str) -> None:
+    s.add(EvidenceRow(evidence_id=ev.evidence_id, seed=seed, work_id=ev.work_id, kind=ev.kind, rel_path=rel_path,
+                      phash=ev.phash, lat=ev.lat, lon=ev.lon, taken_at=ev.taken_at, place_from=place_from,
+                      time_from=time_from, uploaded_at=ev.uploaded_at, data=ev.model_dump(mode="json")))
+    s.flush()
+
+
+def _evidence(s: Session, *where: Any) -> list[Evidence]:
+    q = select(EvidenceRow.data).where(*where).order_by(EvidenceRow.uploaded_at, EvidenceRow.evidence_id)
+    return [Evidence.model_validate(d) for d in s.scalars(q)]
+
+
+def list_evidence(s: Session, seed: int, work_id: str) -> list[Evidence]:
+    """A work's photos, oldest first."""
+    return _evidence(s, EvidenceRow.seed == seed, EvidenceRow.work_id == work_id)
+
+
+def evidence_of_others(s: Session, seed: int, work_id: str) -> list[Evidence]:
+    """Every photo of the other works in this test case, oldest first."""
+    return _evidence(s, EvidenceRow.seed == seed, EvidenceRow.work_id != work_id)
