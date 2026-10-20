@@ -66,6 +66,10 @@ def day_range(start: date, a: int, b: int) -> str:
     return f"{d0.day} {d0:%b} – {d1.day} {d1:%b}"
 
 
+def works_changed_text(n: int) -> str:
+    return "1 work changes" if n == 1 else f"{n} works change"
+
+
 def with_windows(deps: Deps, scenario: Scenario) -> Scenario:
     """The scenario with today's risk windows (forecast, overrides, events), as plans, rules and metrics expect."""
     return scenario.model_copy(update={"risk_windows": deps.compute_risk_windows(scenario)})
@@ -127,7 +131,7 @@ def _db_deps(pure: dict[str, Callable]) -> Deps:
             approval = Approval(
                 approval_id=next_id(s, "A"), plan_id=plan.plan_id, run_id=run_id, tier=result.tier, status="pending",
                 summary=f"New plan for {day_range(scenario.start_date, 0, scenario.horizon_days - 1)} · "
-                        f"{result.works_changed} works change",
+                        f"{works_changed_text(result.works_changed)}",
                 requested_at=datetime.now(UTC))
             store.add_approval(s, approval)
         return approval

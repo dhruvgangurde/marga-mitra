@@ -6,15 +6,19 @@ from backend.app import store
 from backend.app.config import get_settings
 from backend.app.db import session
 from backend.app.routers.city import DEPT_NAMES
-from contracts.models import Assignment, Work, WorkStatus, WorkView
+from contracts.models import Assignment, Verification, Work, WorkStatus, WorkView
 
 router = APIRouter(tags=["works"])
 
 
-def work_status(work: Work, a: Assignment | None, today: int) -> WorkStatus:
-    """First match wins. Verified and held arrive with the photo checks in Phase 2."""
+def work_status(work: Work, a: Assignment | None, today: int, verification: Verification | None = None) -> WorkStatus:
+    """First match wins. A check that needs an inspector or waits for a resident changes nothing."""
     if work.is_emergency:
         return WorkStatus.emergency
+    if verification and verification.result == "verified":
+        return WorkStatus.verified
+    if verification and verification.result == "held":
+        return WorkStatus.held
     if work.done:
         return WorkStatus.done
     if a is None:
@@ -32,11 +36,13 @@ def _views(seed: int, plan_id: str | None) -> list[WorkView]:
     with session() as s:
         scenario = store.get_scenario(s, seed)
         plan = store.get_plan(s, plan_id) if plan_id else store.active_plan(s, seed)
+        checks = store.latest_verifications(s, seed)
     if plan_id and plan is None:
         raise HTTPException(404, f"There is no plan {plan_id}.")
     by_work = {a.work_id: a for a in plan.assignments} if plan else {}
     today = get_settings().today_day
-    return [WorkView(work=w, assignment=by_work.get(w.work_id), status=work_status(w, by_work.get(w.work_id), today))
+    return [WorkView(work=w, assignment=by_work.get(w.work_id),
+                     status=work_status(w, by_work.get(w.work_id), today, checks.get(w.work_id)))
             for w in scenario.works]
 
 

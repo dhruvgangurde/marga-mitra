@@ -1,6 +1,6 @@
 from backend.app.routers.works import work_status
-from contracts.fakes import tiny_scenario
-from contracts.models import Assignment, Mode, WorkStatus
+from contracts.fakes import now, tiny_scenario
+from contracts.models import Assignment, Mode, Verification, WorkStatus
 
 
 def _at(start: int, mode: Mode = Mode.open_cut, group: str | None = None) -> Assignment:
@@ -60,6 +60,23 @@ def test_work_status_order():
     assert work_status(w, None, 8) == WorkStatus.planned
 
 
+def test_work_status_with_a_check():
+    w = tiny_scenario(1).works[1]
+    digging = _at(8)
+
+    def check(result: str) -> Verification:
+        return Verification(verification_id="V-0001", work_id="T-001", result=result, checks=[], deposit_inr=100000,
+                            deposit_released=result == "verified", decided_at=now())
+
+    emergency = w.model_copy(update={"is_emergency": True})
+    assert work_status(emergency, digging, 8, check("verified")) == WorkStatus.emergency
+    assert work_status(w.model_copy(update={"done": True}), digging, 8, check("verified")) == WorkStatus.verified
+    assert work_status(w.model_copy(update={"done": True}), digging, 8, check("held")) == WorkStatus.held
+    assert work_status(w, digging, 8, check("held")) == WorkStatus.held
+    assert work_status(w, digging, 8, check("inspect")) == WorkStatus.digging
+    assert work_status(w, digging, 8, check("pending")) == WorkStatus.digging
+
+
 def test_add_work(client):
     gas = tiny_scenario(1).works[2].model_copy(update={"work_id": "G-002"}).model_dump(mode="json")
     r = client.post("/works", json=gas)
@@ -77,3 +94,15 @@ def test_scenario_load_switches_seed(client):
     assert r.json() == {"seed": 2, "start_date": "2026-11-02", "works": 4, "segments": 3}
     assert [p["plan_id"] for p in client.get("/plans").json()] == ["P-OLD-2"]
     assert client.post("/scenario/load", params={"seed": 0}).status_code == 422
+
+
+def test_scenario_load_is_broadcast(client):
+    with client.websocket_connect("/ws") as ws:
+        client.post("/scenario/load", params={"seed": 2})
+        for _ in range(5):
+            msg = ws.receive_json()
+            if msg["type"] == "ledger.appended" and msg["data"]["action"] == "scenario.loaded":
+                break
+        else:
+            raise AssertionError("no scenario.loaded entry on /ws")
+    assert msg["data"]["summary"] == "Loaded test case 2: 4 works on 3 road segments"

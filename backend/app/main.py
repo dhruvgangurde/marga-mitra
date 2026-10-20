@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -9,8 +10,9 @@ from backend.app import ledger, store
 from backend.app.config import get_settings
 from backend.app.db import init_db, session
 from backend.app.deps import build_wiring
-from backend.app.routers import approvals, city, health, live, plans, risk, works
+from backend.app.routers import approvals, city, evidence, files, health, live, plans, reports, risk, works
 from backend.app.routers import ledger as ledger_router
+from backend.app.runstore import open_run_store
 from contracts.models import Scenario
 
 
@@ -34,18 +36,20 @@ def _is_stored(seed: int) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    await asyncio.to_thread(init_db)
-    app.state.wiring = build_wiring()
-    app.state.seed = get_settings().scenario_seed
-    app.state.tasks = set()
-    if not await asyncio.to_thread(_is_stored, app.state.seed):
-        await asyncio.to_thread(load_scenario, app, app.state.seed)
-    yield
-    for task in app.state.tasks:
-        task.cancel()
+    async with contextlib.AsyncExitStack() as stack:
+        await asyncio.to_thread(init_db)
+        app.state.wiring = build_wiring()
+        app.state.run_store = await open_run_store(stack, app.state.wiring)
+        app.state.seed = get_settings().scenario_seed
+        app.state.tasks = set()
+        if not await asyncio.to_thread(_is_stored, app.state.seed):
+            await asyncio.to_thread(load_scenario, app, app.state.seed)
+        yield
+        for task in app.state.tasks:
+            task.cancel()
 
 
 app = FastAPI(title="MargaMitra API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_list, allow_methods=["*"], allow_headers=["*"])
-for r in (health, city, works, plans, risk, approvals, ledger_router, live):
+for r in (health, city, works, plans, risk, approvals, ledger_router, live, files, evidence, reports):
     app.include_router(r.router)

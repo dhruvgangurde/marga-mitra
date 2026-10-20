@@ -29,6 +29,12 @@ def test_day_range():
     assert deps.day_range(start, 28, 30) == "30 Nov – 2 Dec"
 
 
+def test_works_changed_text():
+    days = deps.day_range(date(2026, 11, 2), 0, 27)
+    assert f"New plan for {days} · {deps.works_changed_text(1)}" == "New plan for 2–29 Nov · 1 work changes"
+    assert f"New plan for {days} · {deps.works_changed_text(4)}" == "New plan for 2–29 Nov · 4 works change"
+
+
 def test_generate_scenario_is_stored(wiring):
     assert "generate_scenario" in wiring.fakes
     assert wiring.deps.generate_scenario(1) == tiny_scenario(1)

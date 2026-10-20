@@ -1,6 +1,6 @@
 """Request and response bodies that only the API uses; every shared shape lives in contracts.models."""
 from datetime import date
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -26,6 +26,13 @@ class Department(BaseModel):
     color_token: str
 
 
+class NoDigEntry(BaseModel):
+    segment_id: str
+    name: str
+    protected_until: date
+    why: str
+
+
 class _Days(BaseModel):
     start_day: int = Field(ge=0, le=27)
     end_day: int = Field(ge=0, le=27)
@@ -46,6 +53,15 @@ class ForecastOverride(_Days):
 class EventIn(_Days):
     label: str
     segment_ids: list[str] = Field(min_length=1)
+
+
+class ConfirmationIn(BaseModel):
+    """A resident's answer. It never carries a name or a phone number."""
+    work_id: str
+    answer: Literal["yes", "notyet"]
+    problems: list[Annotated[str, Field(max_length=60)]] = Field(default=[], max_length=4)
+    lat: float | None = Field(None, ge=-90, le=90)
+    lon: float | None = Field(None, ge=-180, le=180)
 
 
 class ApprovalDecision(BaseModel):

@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 from backend.app import deps  # noqa: E402
+from backend.app.config import get_settings  # noqa: E402
 from backend.app.db import engine, init_db  # noqa: E402
 from backend.app.main import app  # noqa: E402
 from backend.app.tables import Base  # noqa: E402
@@ -40,6 +41,14 @@ def db():
     with engine().begin() as c:
         c.execute(text(f"TRUNCATE {', '.join(Base.metadata.tables)} RESTART IDENTITY CASCADE"))
     yield
+
+
+@pytest.fixture
+def uploads_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOADS_DIR", str(tmp_path / "uploads"))
+    get_settings.cache_clear()
+    yield tmp_path / "uploads"
+    get_settings.cache_clear()
 
 
 @pytest.fixture

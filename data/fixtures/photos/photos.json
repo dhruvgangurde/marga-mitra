@@ -1,0 +1,65 @@
+[
+  {
+    "file": "W-104-before.jpg",
+    "work_id": "W-104",
+    "kind": "before",
+    "lat": 13.000951,
+    "lon": 74.795944,
+    "taken_at": "2026-11-10T08:12:00+05:30",
+    "facts": "photo"
+  },
+  {
+    "file": "W-104-after.jpg",
+    "work_id": "W-104",
+    "kind": "after",
+    "lat": 13.000951,
+    "lon": 74.795944,
+    "taken_at": "2026-11-15T17:40:00+05:30",
+    "facts": "photo"
+  },
+  {
+    "file": "T-221-before.jpg",
+    "work_id": "T-221",
+    "kind": "before",
+    "lat": 13.000951,
+    "lon": 74.795944,
+    "taken_at": "2026-11-10T08:20:00+05:30",
+    "facts": "photo"
+  },
+  {
+    "file": "T-230-before.jpg",
+    "work_id": "T-230",
+    "kind": "before",
+    "lat": 13.028218,
+    "lon": 74.785596,
+    "taken_at": "2026-11-09T09:05:00+05:30",
+    "facts": "photo"
+  },
+  {
+    "file": "T-230-after.jpg",
+    "work_id": "T-230",
+    "kind": "after",
+    "lat": 13.028218,
+    "lon": 74.785596,
+    "taken_at": "2026-11-10T09:40:00+05:30",
+    "facts": "phone"
+  },
+  {
+    "file": "P-125-before.jpg",
+    "work_id": "P-125",
+    "kind": "before",
+    "lat": 12.995453,
+    "lon": 74.798968,
+    "taken_at": "2026-11-08T09:00:00+05:30",
+    "facts": "photo"
+  },
+  {
+    "file": "P-125-after.jpg",
+    "work_id": "P-125",
+    "kind": "after",
+    "lat": 12.995453,
+    "lon": 74.798968,
+    "taken_at": "2026-11-09T18:30:00+05:30",
+    "facts": "photo"
+  }
+]
