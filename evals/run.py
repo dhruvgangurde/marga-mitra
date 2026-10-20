@@ -127,10 +127,15 @@ async def plan_variant(variant: str, scenario: Scenario, parts: Parts, naive: Pl
         agreed = await _negotiated(calm, parts, naive, f"EVAL-{scenario.seed}-agents")
         return solve(calm, agreed.model_copy(update={"use_risk": False}), PlanVariant.agents)
     if variant in ("risk", "full"):  # photo checks move no dates; their effect is the fake-repair count
-        stormy = with_windows(scenario, eval_windows(scenario, parts))
-        agreed = await _negotiated(stormy, parts, naive, f"EVAL-{scenario.seed}-risk")
-        return solve(stormy, agreed.model_copy(update={"use_risk": True}), PlanVariant.orchestrated)
+        return await risk_plan(scenario, parts, naive, eval_windows(scenario, parts), f"EVAL-{scenario.seed}-risk")
     raise ValueError(f"unknown variant: {variant}")
+
+
+async def risk_plan(scenario: Scenario, parts: Parts, naive: Plan, windows: list[RiskWindow], run_id: str) -> Plan:
+    """Negotiate and plan with these risk windows switched on."""
+    stormy = with_windows(scenario, windows)
+    agreed = await _negotiated(stormy, parts, naive, run_id)
+    return solve(stormy, agreed.model_copy(update={"use_risk": True}), PlanVariant.orchestrated)
 
 
 CSV_FIELDS = ("seed", "variant", "plan_id", "excavations", "digs_per_road", "lane_closure_hours", "trench_hours_in_rain",

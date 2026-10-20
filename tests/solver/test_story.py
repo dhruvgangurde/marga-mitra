@@ -2,7 +2,8 @@
 import pytest
 
 from contracts import rules
-from contracts.models import Mode, Plan, RiskKind, RiskWindow, Scenario, SolveConstraints
+from contracts.models import Mode, Plan, RiskKind, Scenario, SolveConstraints
+from evals.run import eval_windows, load_parts, with_windows
 from solver.baselines import naive_plan
 from solver.solve import solve
 
@@ -50,10 +51,8 @@ def test_orchestrated_plan_shares_the_trench_and_resurfaces_last():
 def test_heavy_rain_moves_open_trenches_off_low_roads():
     scenario_module = pytest.importorskip("data.scenario")
     scenario = scenario_module.generate_scenario(1)
-    low = [s.segment_id for s in scenario.segments if s.low_lying]
-    rain = RiskWindow(window_id="OV-1", kind=RiskKind.rain, start_day=12, end_day=13, segment_ids=low, value=70,
-                      source="override", label="Heavy rain, 14–15 Nov")
-    scenario = scenario.model_copy(update={"risk_windows": [*scenario.risk_windows, rain]})
+    # the same rain spell as the evaluation and the backend
+    scenario = with_windows(scenario, eval_windows(scenario, load_parts()))
     plan = orchestrate(scenario)
     assert rules.rain_trench_hours(scenario, plan) == 0
     a = by_id(plan)
