@@ -107,9 +107,26 @@ def fetch_live(now: datetime | None = None) -> dict:
     return data
 
 
+def _fixture_status(error: str | None = None, mode: str = "fixture") -> dict:
+    return {
+        "mode": mode, "source": "fixture", "fetched_at": None, "error": error,
+        "live_rain_days": 0, "live_air_days": 0,
+    }
+
+
+_status: dict = _fixture_status()
+_last_error: str | None = None
+
+
+def live_status() -> dict:
+    return dict(_status)
+
+
 def reset_live_state() -> None:
-    global _failed_at
+    global _failed_at, _status, _last_error
     _failed_at = None
+    _last_error = None
+    _status = _fixture_status()
 
 
 def _number(x: object, low: float, high: float) -> float | None:
@@ -185,20 +202,30 @@ def overlay_live(days: list[DayWeather], raw: dict, today: int) -> list[DayWeath
 
 
 def daily_weather(mode: str = "fixture", now: datetime | None = None) -> list[DayWeather]:
-    global _failed_at
+    global _failed_at, _status, _last_error
     if mode == "fixture":
+        _status = _fixture_status()
         return fixture_days()
     if mode == "live":
         now = now or datetime.now(UTC)
         if _failed_at is not None and now - _failed_at < RETRY_AFTER:
+            _status = _fixture_status(_last_error, "live")
             return fixture_days()
         try:
-            days = overlay_live(fixture_days(), fetch_live(now), today_day())
+            raw = fetch_live(now)
+            days = overlay_live(fixture_days(), raw, today_day())
         except Exception as e:
             _failed_at = now
+            _last_error = type(e).__name__
             detail = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
             log.warning("Live forecast unavailable (%s): using the demo forecast", detail)
+            _status = _fixture_status(_last_error, "live")
             return fixture_days()
         _failed_at = None
+        _last_error = None
+        _status = {
+            "mode": "live", "source": "open-meteo", "fetched_at": raw["fetched_at"], "error": None,
+            "live_rain_days": sum(d.rain_live for d in days), "live_air_days": sum(d.air_live for d in days),
+        }
         return days
     raise ValueError("mode must be fixture or live")

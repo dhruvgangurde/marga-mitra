@@ -45,17 +45,24 @@ def compute_risk_windows(
 
     found: list[RiskWindow] = [w for w in scenario.risk_windows if w.kind == RiskKind.event]
     days = weather.daily_weather(mode)[: scenario.horizon_days]
+    # In live mode the hand-made days never mix into the windows, so a fixture window in live mode means the live forecast failed. The command centre shows this.
+    live_rain = any(d.rain_live for d in days)
+    live_air = any(d.air_live for d in days)
+    rain_flags = [d.rain_mm >= heavy and (d.rain_live or not live_rain) for d in days]
+    air_flags = [d.aqi >= poor and (d.air_live or not live_air) for d in days]
 
-    for i, (a, b) in enumerate(_runs([d.rain_mm >= heavy for d in days]), start=1):
+    for i, (a, b) in enumerate(_runs(rain_flags), start=1):
         found.append(RiskWindow(
             window_id=f"R{i}", kind=RiskKind.rain, start_day=a, end_day=b, segment_ids=list(low_ids),
-            value=round(max(d.rain_mm for d in days[a:b + 1]), 1), source=days[a].source,
+            value=round(max(d.rain_mm for d in days[a:b + 1]), 1),
+            source="open-meteo" if days[a].rain_live else "fixture",
             label=f"Heavy rain, {days_label(start, a, b)}"))
 
-    for i, (a, b) in enumerate(_runs([d.aqi >= poor for d in days]), start=1):
+    for i, (a, b) in enumerate(_runs(air_flags), start=1):
         found.append(RiskWindow(
             window_id=f"A{i}", kind=RiskKind.air, start_day=a, end_day=b, segment_ids=list(all_ids),
-            value=float(max(d.aqi for d in days[a:b + 1])), source=days[a].source,
+            value=float(max(d.aqi for d in days[a:b + 1])),
+            source="open-meteo" if days[a].air_live else "fixture",
             label=f"Poor air, {days_label(start, a, b)}"))
 
     for w in overrides or []:
@@ -94,6 +101,13 @@ def main(argv: list[str] | None = None) -> None:
     scenario = demo_scenario() if args.seed == 1 else generate_scenario(args.seed)
     windows = compute_risk_windows(scenario, args.mode)
     print(f"Risk windows · test case {args.seed} · {args.mode}")
+    status = weather.live_status()
+    if status["source"] == "open-meteo":
+        print(f"Forecast source: Open-Meteo, fetched {status['fetched_at']}")
+    elif status["error"]:
+        print(f"Forecast source: demo forecast (live forecast unavailable: {status['error']})")
+    else:
+        print("Forecast source: demo forecast")
     for w in windows:
         value = {"rain": f"{w.value:.1f} mm", "air": f"AQI {w.value:.0f}"}.get(w.kind.value, "")
         when = days_label(scenario.start_date, w.start_day, w.end_day)
