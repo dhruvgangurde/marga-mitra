@@ -145,10 +145,14 @@ def _accept_groups(scenario: Scenario, constraints: SolveConstraints, built: Bui
         return {}
     works = {w.work_id: w for w in scenario.works}
     fits: dict[str, tuple[int, list[int]]] = {}
-    taken: set[str] = set()
+    taken: dict[str, str] = {}  # work id -> the group whose trench it sits in
     for group in scenario.parallel_groups:
+        if group.group_id not in constraints.shared_groups:
+            continue
         # a work can sit in only one trench, so a later group that reuses a member is skipped
-        if group.group_id not in constraints.shared_groups or taken & set(group.work_ids):
+        reused = next((wid for wid in group.work_ids if wid in taken), None)
+        if reused:
+            built.notes.append(f"{group.group_id} was not used: {reused} is already in {taken[reused]}.")
             continue
         if not all(wid in works for wid in group.work_ids):
             continue
@@ -159,7 +163,7 @@ def _accept_groups(scenario: Scenario, constraints: SolveConstraints, built: Bui
             continue
         built.groups[group.group_id] = group
         fits[group.group_id] = (duration, starts)
-        taken |= set(group.work_ids)
+        taken.update(dict.fromkeys(group.work_ids, group.group_id))
     return fits
 
 

@@ -133,7 +133,9 @@ def solve(scenario: Scenario, constraints: SolveConstraints, variant: PlanVarian
     solver = cp_model.CpSolver()
     solver.parameters.num_workers = 1
     solver.parameters.random_seed = scenario.seed
-    solver.parameters.max_time_in_seconds = constraints.time_limit_s
+    # the deterministic budget decides, so the same inputs give the same plan; the wall clock is only a safety net
+    solver.parameters.max_deterministic_time = constraints.time_limit_s
+    solver.parameters.max_time_in_seconds = constraints.time_limit_s * 4
     status = solver.solve(built.model)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         raise ValueError(f"No plan found: {solver.status_name(status)}")
