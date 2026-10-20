@@ -1,15 +1,25 @@
 """Plan every test case in the five ways of the Impact page and summarize the results."""
 from __future__ import annotations
 
+import os
 import random
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from contracts import fakes
-from contracts.models import NegotiationOutcome, RiskKind, RiskWindow, Scenario
+from contracts import fakes, rules
+from contracts.models import (
+    NegotiationOutcome,
+    Plan,
+    PlanVariant,
+    RiskKind,
+    RiskWindow,
+    Scenario,
+    SolveConstraints,
+    WsEvent,
+)
 from evals.imports import optional
-from solver.solve import days_text
+from solver.solve import days_text, solve
 
 
 @dataclass
@@ -56,6 +66,50 @@ def eval_windows(scenario: Scenario, parts: Parts, with_rain: bool = True) -> li
 
 def with_windows(scenario: Scenario, windows: list[RiskWindow]) -> Scenario:
     return scenario.model_copy(update={"risk_windows": windows})
+
+
+VARIANTS = ("naive", "solver_only", "agents", "risk", "full")
+LABELS = {
+    "naive": "Old way (first come, first dug)",
+    "solver_only": "Scheduler without agents",
+    "agents": "+ department agents",
+    "risk": "+ rain, air and event forecasts",
+    "full": "+ photo checks (all of MargaMitra)",
+}
+
+
+def force_no_llm() -> None:
+    """The negotiation runs without a model, so the numbers repeat and cost nothing."""
+    os.environ["LLM_PROVIDER"] = "none"
+    get_llm = optional("agents.llm", "get_llm")
+    if get_llm is not None:
+        get_llm.cache_clear()
+
+
+async def _drop(event: WsEvent) -> None:
+    """The evaluation does not need live events."""
+
+
+async def _negotiated(scenario: Scenario, parts: Parts, naive: Plan, run_id: str) -> SolveConstraints:
+    out = await parts.negotiate(scenario, naive, rules.find_clashes(scenario, naive), run_id, _drop)
+    return out.constraints
+
+
+async def plan_variant(variant: str, scenario: Scenario, parts: Parts, naive: Plan) -> Plan:
+    """One of the five plans. Every variant is measured later on the same stormy scenario; only the planning changes."""
+    calm = with_windows(scenario, [])
+    if variant == "naive":
+        return naive
+    if variant == "solver_only":
+        return solve(calm, SolveConstraints(use_risk=False, use_groups=False), PlanVariant.solver_only)
+    if variant == "agents":
+        agreed = await _negotiated(calm, parts, naive, f"EVAL-{scenario.seed}-agents")
+        return solve(calm, agreed.model_copy(update={"use_risk": False}), PlanVariant.agents)
+    if variant in ("risk", "full"):  # photo checks move no dates; their effect is the fake-repair count
+        stormy = with_windows(scenario, eval_windows(scenario, parts))
+        agreed = await _negotiated(stormy, parts, naive, f"EVAL-{scenario.seed}-risk")
+        return solve(stormy, agreed.model_copy(update={"use_risk": True}), PlanVariant.orchestrated)
+    raise ValueError(f"unknown variant: {variant}")
 
 
 def parse_seeds(text: str) -> list[int]:
