@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { USE_MOCKS } from '../../api/client';
+import { ApiError, USE_MOCKS } from '../../api/client';
 import { useEvidence, useSegments, useUploadEvidence, useVerification, useVerifyWork, useWork, useWorks } from '../../api/hooks';
 import { dateTimeLabel, dayRange, deptName, START_DATE } from '../../api/format';
 import type { Assignment, Evidence } from '../../api/types';
-import { Banner, Button, Card, DeptChip, metresToLine, PhoneScreen, PhotoSlot, StatusBadge, StepList, TextField } from '../../ui';
+import {
+  Banner, Button, Card, DeptChip, EmptyState, LoadError, metresToLine, PhoneScreen, PhotoSlot, Skeleton, StatusBadge, StepList, TextField,
+} from '../../ui';
 
 type Kind = 'before' | 'after';
 type Line = [number, number][];
@@ -62,11 +64,17 @@ function phonePosition(): Promise<{ lat: number; lon: number } | null> {
 export default function FieldCaptureScreen() {
   const { workId = '' } = useParams();
   const navigate = useNavigate();
-  const view = useWork(workId).data;
-  const works = useWorks().data ?? [];
-  const evidence = useEvidence(workId).data ?? [];
-  const verification = useVerification(workId).data;
-  const features = useSegments().data?.features ?? [];
+  const workQuery = useWork(workId);
+  const worksQuery = useWorks();
+  const evidenceQuery = useEvidence(workId);
+  const verificationQuery = useVerification(workId);
+  const segmentsQuery = useSegments();
+  const queries = [workQuery, worksQuery, evidenceQuery, verificationQuery, segmentsQuery];
+  const view = workQuery.data;
+  const works = worksQuery.data ?? [];
+  const evidence = evidenceQuery.data ?? [];
+  const verification = verificationQuery.data;
+  const features = segmentsQuery.data?.features ?? [];
   const upload = useUploadEvidence();
   const verify = useVerifyWork();
 
@@ -79,7 +87,24 @@ export default function FieldCaptureScreen() {
 
   useEffect(() => () => previews.current.forEach((url) => URL.revokeObjectURL(url)), []);
 
-  if (!view) return <PhoneScreen title="Site photos" backTo="/field" badge={<StatusBadge status="live">On site</StatusBadge>} />;
+  const badge = <StatusBadge status="live">On site</StatusBadge>;
+  if (!view) {
+    const unknown = workQuery.error instanceof ApiError && workQuery.error.status === 404;
+    return (
+      <PhoneScreen title="Site photos" backTo="/field" badge={badge} busy={workQuery.isLoading}>
+        {workQuery.isLoading ? (
+          <>
+            <Skeleton height={96} />
+            <Skeleton height={240} />
+          </>
+        ) : unknown ? (
+          <EmptyState icon="hardhat" text={`We could not find work ${workId}.`} action={<Button as="a" href="/field">Back to my works</Button>} />
+        ) : (
+          <LoadError queries={queries} />
+        )}
+      </PhoneScreen>
+    );
+  }
 
   const { work, assignment } = view;
   const lines: Line[] = work.segment_ids.flatMap((id) => {
@@ -162,7 +187,8 @@ export default function FieldCaptureScreen() {
   );
 
   return (
-    <PhoneScreen title="Site photos" backTo="/field" badge={<StatusBadge status="live">On site</StatusBadge>} footer={footer}>
+    <PhoneScreen title="Site photos" backTo="/field" badge={badge} footer={footer}>
+      <LoadError queries={queries} />
       {failed ? <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner> : null}
       {verification ? (
         <Banner

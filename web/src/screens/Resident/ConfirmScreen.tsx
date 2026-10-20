@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { USE_MOCKS } from '../../api/client';
+import { ApiError, USE_MOCKS } from '../../api/client';
 import { useConfirmRoad, useEvidence, useUploadEvidence, useWork, useWorks } from '../../api/hooks';
 import { dayLabel } from '../../api/format';
 import type { Evidence } from '../../api/types';
-import { Banner, Button, Card, DeptChip, PhoneScreen, PhotoSlot, StatusBadge } from '../../ui';
+import {
+  Banner, Button, Card, DeptChip, EmptyState, LoadError, PhoneScreen, PhotoSlot, Skeleton, StatusBadge,
+} from '../../ui';
 
 type Stage = 'asking' | 'notyet' | 'sent-yes' | 'sent-notyet';
 type Place = { lat: number; lon: number };
@@ -45,9 +47,13 @@ function startStage(answer: string | null): Stage {
 export default function ConfirmScreen() {
   const { workId = '' } = useParams();
   const [search] = useSearchParams();
-  const view = useWork(workId).data;
-  const works = useWorks().data ?? [];
-  const evidence = useEvidence(workId).data ?? [];
+  const workQuery = useWork(workId);
+  const worksQuery = useWorks();
+  const evidenceQuery = useEvidence(workId);
+  const queries = [workQuery, worksQuery, evidenceQuery];
+  const view = workQuery.data;
+  const works = worksQuery.data ?? [];
+  const evidence = evidenceQuery.data ?? [];
   const confirm = useConfirmRoad();
   const upload = useUploadEvidence();
 
@@ -66,7 +72,23 @@ export default function ConfirmScreen() {
     ? <StatusBadge status="ok">Answered</StatusBadge>
     : <StatusBadge status="pending">1 question</StatusBadge>;
 
-  if (!view) return <PhoneScreen title="Your road" backTo="/" badge={badge} />;
+  if (!view) {
+    const unknown = workQuery.error instanceof ApiError && workQuery.error.status === 404;
+    return (
+      <PhoneScreen title="Your road" backTo="/" badge={badge} busy={workQuery.isLoading}>
+        {workQuery.isLoading ? (
+          <>
+            <Skeleton height={96} />
+            <Skeleton height={240} />
+          </>
+        ) : unknown ? (
+          <EmptyState icon="road" text={`We could not find work ${workId}.`} action={<Button as="a" href="/">Back to the start</Button>} />
+        ) : (
+          <LoadError queries={queries} />
+        )}
+      </PhoneScreen>
+    );
+  }
 
   const { work, assignment } = view;
   const partners = assignment?.shared_group
@@ -112,6 +134,7 @@ export default function ConfirmScreen() {
 
   return (
     <PhoneScreen title="Your road" backTo="/" badge={badge}>
+      <LoadError queries={queries} />
       <Card style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <DeptChip dept={work.dept} />

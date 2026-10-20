@@ -4,7 +4,9 @@ import { useApprovals, useDecideApproval, useOldWayPlan, usePlanDiff, usePlanMet
 import { compareLabel, dayRange, inr, metricDelta, shortTime, signedInr } from '../../api/format';
 import type { Approval, Tier } from '../../api/types';
 import { useRole } from '../../app/role';
-import { Banner, Button, Card, DiffRow, Icon, MetricTile, PhoneScreen, StatusBadge, StepList, TextField } from '../../ui';
+import {
+  Banner, Button, Card, DiffRow, EmptyState, LoadError, MetricTile, PhoneScreen, Skeleton, StatusBadge, StepList, TextField,
+} from '../../ui';
 
 type Decision = 'approve' | 'reject';
 
@@ -16,7 +18,6 @@ const TIERS: Record<Exclude<Tier, 'auto'>, { who: string; label: string; detail:
 
 const COLUMN = { display: 'flex', flexDirection: 'column', gap: 8 } as const;
 const ROW = { display: 'flex', justifyContent: 'space-between', gap: 8 } as const;
-const SAND = { background: 'var(--sand)', borderRadius: 'var(--radius-xl)' } as const;
 
 const newest = (list: Approval[] = []): Approval | undefined =>
   [...list].sort((a, b) => b.requested_at.localeCompare(a.requested_at))[0];
@@ -43,21 +44,21 @@ export default function ApprovalsScreen() {
       ? <StatusBadge status="fail">Rejected</StatusBadge>
       : <StatusBadge status="pending">Waiting</StatusBadge>;
 
-  if (loading || !approval) {
+  const queries = [approvals, diff, metrics, oldWay, oldMetrics];
+  if (loading) {
+    return (
+      <PhoneScreen title="Approval" backTo="/" badge={badge} busy>
+        <Skeleton height={96} />
+        <Skeleton height={240} />
+      </PhoneScreen>
+    );
+  }
+  if (!approval) {
     return (
       <PhoneScreen title="Approval" backTo="/" badge={badge}>
-        {loading ? (
-          <>
-            <div style={{ ...SAND, height: 96 }} />
-            <div style={{ ...SAND, height: 240 }} />
-          </>
-        ) : (
-          <Card soft style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
-            <Icon name="handshake" size={24} />
-            <p className="body-l" style={{ margin: 0 }}>Nothing is waiting for you.</p>
-            <Button as="a" href="/command">Open command centre</Button>
-          </Card>
-        )}
+        {approvals.isError
+          ? <LoadError queries={queries} />
+          : <EmptyState icon="handshake" text="Nothing is waiting for you." action={<Button as="a" href="/command">Open command centre</Button>} />}
       </PhoneScreen>
     );
   }
@@ -104,6 +105,7 @@ export default function ApprovalsScreen() {
 
   return (
     <PhoneScreen title="Approval" backTo="/" badge={badge} footer={footer}>
+      <LoadError queries={queries} />
       {decided?.decision === 'approve' ? (
         <Banner tone="ok" title="Plan approved">It is in the public record. Department heads are told.</Banner>
       ) : decided?.decision === 'reject' ? (

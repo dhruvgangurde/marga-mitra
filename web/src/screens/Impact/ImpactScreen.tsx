@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react';
+import { ApiError } from '../../api/client';
 import { useEvalsSummary } from '../../api/hooks';
 import { compareLabel, metricDelta } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import type { EvalRow, EvalSummary, Stat } from '../../api/types';
-import { Button, Card, DataTable, MetricTile, Tag } from '../../ui';
+import { Button, Card, DataTable, EmptyState, LoadError, MetricTile, Skeleton, Tag } from '../../ui';
 
 type Variant = EvalRow['variant'];
 type StatKey = 'digs_per_road' | 'lane_closure_hours' | 'trench_hours_in_rain' | 'clashes' | 'days_late';
@@ -194,11 +196,29 @@ function Report({ summary }: { summary: EvalSummary }) {
   );
 }
 
+const ready = (s: EvalSummary | undefined): s is EvalSummary =>
+  Boolean(s && s.rows.some((r) => r.variant === 'naive') && s.rows.some((r) => r.variant === 'full'));
+
 export default function ImpactScreen() {
-  const summary = useEvalsSummary().data;
+  const evals = useEvalsSummary();
+  // A summary the server does not have yet comes back as not found.
+  const missing = evals.error instanceof ApiError && evals.error.status === 404;
+  let body: ReactNode;
+  if (evals.isLoading) {
+    body = [0, 1, 2, 3].map((i) => <Skeleton key={i} height={120} />);
+  } else if (evals.isError && !missing) {
+    body = <LoadError queries={[evals]} />;
+  } else if (ready(evals.data)) {
+    body = <Report summary={evals.data} />;
+  } else {
+    body = <EmptyState icon="clock" text="The test results are not ready yet." action={<Button as="a" href="/command">Open command centre</Button>} />;
+  }
   return (
-    <main style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 96px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 64 }}>
-      {summary ? <Report summary={summary} /> : null}
+    <main
+      aria-busy={evals.isLoading ? 'true' : undefined}
+      style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 96px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 64 }}
+    >
+      {body}
     </main>
   );
 }

@@ -4,7 +4,7 @@ import { USE_MOCKS } from '../../api/client';
 import { useAuditorFlags, useLedger, useNoDig, useVerifyLedger, useWorks } from '../../api/hooks';
 import { actorLabel, linkLabel, shortTime, timeLabel } from '../../api/format';
 import type { LedgerEntry, NoDigEntry } from '../../api/types';
-import { Banner, Button, Card, DataTable, MetricTile, StatusBadge, Tag } from '../../ui';
+import { Banner, Button, Card, DataTable, EmptyState, LoadError, MetricTile, Skeleton, StatusBadge, Tag } from '../../ui';
 
 const MOST_SHOWN = 500;
 const COLUMN = { display: 'flex', flexDirection: 'column', gap: 16 } as const;
@@ -53,6 +53,9 @@ export default function RecordScreen() {
   const total = entries[0]?.seq ?? 0;
   const roads = byRoad(noDig.data ?? []);
   const result = verify.data;
+  const queries = [ledger, works, noDig, flags];
+  const ledgerLoading = ledger.isLoading && entries.length === 0;
+  const loading = ledgerLoading || works.isLoading || noDig.isLoading || flags.isLoading;
 
   const runCheck = verify.mutate;
   useEffect(() => {
@@ -62,7 +65,11 @@ export default function RecordScreen() {
   }, [search, runCheck]);
 
   return (
-    <main style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 96px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 64 }}>
+    <main
+      aria-busy={loading ? 'true' : undefined}
+      style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 96px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 64 }}
+    >
+      <LoadError queries={queries} />
       <section style={{ ...COLUMN, alignItems: 'flex-start' }}>
         <Tag>Open to everyone</Tag>
         <h1 className="display-2" style={{ margin: 0, color: 'var(--maroon)' }}>Public record</h1>
@@ -72,7 +79,11 @@ export default function RecordScreen() {
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', width: '100%' }}>
           <Button variant="primary" disabled={verify.isPending} onClick={() => verify.mutate()}>Check the record</Button>
-          {result ? (
+          {verify.isError ? (
+            <div style={{ flex: '1 1 420px', minWidth: 0 }} aria-live="polite">
+              <Banner tone="danger" title="Could not send">Check your connection and try again.</Banner>
+            </div>
+          ) : result ? (
             <div style={{ flex: '1 1 420px', minWidth: 0 }} aria-live="polite">
               {result.ok ? (
                 <Banner tone="ok" title="Record checked">{`${result.entries} entries. Nothing was changed.`}</Banner>
@@ -86,16 +97,21 @@ export default function RecordScreen() {
             <span className="small" style={{ color: 'var(--ink-3)' }}>Anyone can run this check.</span>
           )}
         </div>
+        {loading ? <div style={{ width: '100%' }}><Skeleton height={120} /></div> : queries.some((q) => q.isError) ? null : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, width: '100%' }}>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Entries" value={total} /></div>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Works this month" value={works.data?.length ?? 0} /></div>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Protected roads" value={roads.length} /></div>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}><MetricTile label="Auditor notes" value={flags.data?.length ?? 0} /></div>
         </div>
+        )}
       </section>
 
       <section style={COLUMN}>
         <h2 className="display-3" style={{ margin: 0 }}>Latest entries</h2>
+        {ledgerLoading ? <Skeleton height={120} /> : entries.length === 0 && ledger.isError ? null : entries.length === 0 ? (
+          <EmptyState icon="eye" text="The record is empty." action={<Button as="a" href="/command">Open command centre</Button>} />
+        ) : (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
           <DataTable
             caption="Newest first"
@@ -105,6 +121,7 @@ export default function RecordScreen() {
             }))}
           />
         </Card>
+        )}
         {entries.length < Math.min(total, MOST_SHOWN) ? (
           <div><Button variant="ghost" onClick={() => setLimit(Math.min(total, MOST_SHOWN))}>{`Show all ${total} entries`}</Button></div>
         ) : null}
@@ -116,13 +133,15 @@ export default function RecordScreen() {
           <p className="body" style={{ margin: 0, color: 'var(--ink-2)' }}>
             No new digs on these roads until the date shown. Emergencies are allowed and reviewed after.
           </p>
-          <Card style={{ padding: 0, overflowX: 'auto' }}>
-            <DataTable
-              caption="Protected-road list"
-              columns={NO_DIG_COLUMNS}
-              rows={roads.map((r) => ({ id: r.name, road: r.name, until: untilDate.format(new Date(r.protected_until)), why: r.why }))}
-            />
-          </Card>
+          {noDig.isLoading ? <Skeleton height={120} /> : noDig.isError ? null : (
+            <Card style={{ padding: 0, overflowX: 'auto' }}>
+              <DataTable
+                caption="Protected-road list"
+                columns={NO_DIG_COLUMNS}
+                rows={roads.map((r) => ({ id: r.name, road: r.name, until: untilDate.format(new Date(r.protected_until)), why: r.why }))}
+              />
+            </Card>
+          )}
         </section>
 
         <section style={HALF}>
@@ -130,6 +149,7 @@ export default function RecordScreen() {
           <p className="body" style={{ margin: 0, color: 'var(--ink-2)' }}>
             The auditor reads every entry and flags anything a person should look at.
           </p>
+          {flags.isLoading ? <Skeleton height={120} /> : null}
           {(flags.data ?? []).map((f) => (
             <Card key={f.flag_id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -3,7 +3,7 @@ import { USE_MOCKS } from '../../api/client';
 import { useReportEmergency, useSegments } from '../../api/hooks';
 import type { CitizenReport, EmergencyInput } from '../../api/types';
 import {
-  Banner, Button, Card, Icon, metresBetween, metresToLine, PhoneScreen, PhotoSlot, StatusBadge, TextField,
+  Banner, Button, Card, Icon, LoadError, metresBetween, metresToLine, PhoneScreen, PhotoSlot, StatusBadge, TextField,
 } from '../../ui';
 import type { IconName } from '../../ui';
 
@@ -23,7 +23,8 @@ const DEMO_SPOT: Place = { lat: 13.0089, lon: 74.7988 };
 const HINT = { margin: 0, color: 'var(--ink-3)' } as const;
 
 export default function ReportScreen() {
-  const features = useSegments().data?.features ?? [];
+  const segments = useSegments();
+  const features = segments.data?.features ?? [];
   const report = useReportEmergency();
   const [kind, setKind] = useState<Kind | null>(null);
   const [place, setPlace] = useState<Place | null>(null);
@@ -106,6 +107,7 @@ export default function ReportScreen() {
 
   return (
     <PhoneScreen title="Report" backTo="/" badge={badge} footer={footer}>
+      <LoadError queries={[segments]} />
       {report.isError ? (
         <Banner tone="danger" title="Could not send">Check your connection and try again. Your report is still here.</Banner>
       ) : null}
