@@ -1,4 +1,8 @@
 ﻿import datetime as dt
+import json
+import urllib.error
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -45,3 +49,69 @@ def test_sources_and_new_list():
 def test_bad_mode():
     with pytest.raises(ValueError):
         weather.daily_weather("other")
+
+
+SAMPLES = Path(__file__).parent / "samples"
+T0 = datetime(2026, 10, 24, 9, 0, tzinfo=UTC)
+
+
+def _sample(url):
+    name = "air_quality.json" if "air-quality" in url else "forecast.json"
+    return json.loads((SAMPLES / name).read_text(encoding="utf-8"))
+
+
+@pytest.fixture
+def live(monkeypatch, tmp_path):
+    calls = []
+
+    def fake(url):
+        calls.append(url)
+        return _sample(url)
+
+    monkeypatch.setattr(weather, "_get_json", fake)
+    monkeypatch.setattr(weather, "CACHE", tmp_path / "cache.json")
+    monkeypatch.setenv("TODAY_DAY", "8")
+    return calls
+
+
+def test_live_overlay(live):
+    days = weather.daily_weather("live", T0)
+    assert len(days) == 28
+    d8, d9, d10, d7 = days[8], days[9], days[10], days[7]
+    assert (d8.rain_mm, d8.pm2_5, d8.pm10, d8.aqi, d8.source) == (0.4, 50.0, 70.0, 83, "open-meteo")
+    assert (d9.rain_mm, d9.pm2_5, d9.pm10, d9.aqi, d9.source) == (62.0, 95.0, 220.0, 215, "open-meteo")
+    assert (d10.rain_mm, d10.aqi, d10.source) == (9.4, 88, "fixture")
+    assert d7.source == "fixture"
+
+
+def test_live_other_today(live, monkeypatch):
+    monkeypatch.setenv("TODAY_DAY", "26")
+    days = weather.daily_weather("live", T0)
+    assert [d.day for d in days if d.source == "open-meteo"] == [26, 27]
+    monkeypatch.setenv("TODAY_DAY", "0")
+    days = weather.daily_weather("live", T0)
+    assert [d.day for d in days if d.source == "open-meteo"] == [0, 1]
+
+
+def test_live_cache(live):
+    weather.daily_weather("live", T0)
+    assert len(live) == 2
+    weather.daily_weather("live", T0 + timedelta(hours=2, minutes=59))
+    assert len(live) == 2
+    weather.daily_weather("live", T0 + timedelta(hours=3, minutes=1))
+    assert len(live) == 4
+
+
+@pytest.mark.parametrize("bad", ["offline", "empty"])
+def test_live_fallback(monkeypatch, tmp_path, caplog, bad):
+    def fake(url):
+        if bad == "offline":
+            raise urllib.error.URLError("offline")
+        return {}
+
+    monkeypatch.setattr(weather, "_get_json", fake)
+    monkeypatch.setattr(weather, "CACHE", tmp_path / "cache.json")
+    with caplog.at_level("WARNING"):
+        days = weather.daily_weather("live", T0)
+    assert days == weather.fixture_days()
+    assert "Live forecast unavailable" in caplog.text
