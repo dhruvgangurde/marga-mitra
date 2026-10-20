@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
     uploads_dir: str = "uploads"
     today_day: int = 8
+    internal_api_base: str = "http://127.0.0.1:8000"
+    evals_summary_path: str = "evals/results/summary.json"
 
     @property
     def cors_list(self) -> list[str]:

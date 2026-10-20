@@ -2,6 +2,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
+from geoalchemy2 import Geography
 from geoalchemy2.shape import from_shape
 from shapely.geometry import LineString
 from sqlalchemy import delete, func, select
@@ -10,8 +11,10 @@ from sqlalchemy.orm import Session
 
 from backend.app.tables import (
     ApprovalRow,
+    AuditorFlagRow,
     CitizenReportRow,
     EvidenceRow,
+    LedgerRow,
     NegotiationMessageRow,
     PlanRow,
     RiskWindowRow,
@@ -23,8 +26,10 @@ from backend.app.tables import (
 )
 from contracts.models import (
     Approval,
+    AuditorFlag,
     CitizenReport,
     Evidence,
+    LedgerEntry,
     NegotiationMessage,
     Plan,
     RiskWindow,
@@ -70,6 +75,15 @@ def add_work(s: Session, seed: int, work: Work) -> Work:
                   data=work.model_dump(mode="json")))
     s.flush()
     return work
+
+
+def nearest_segment(s: Session, segment_ids: list[str], lat: float, lon: float) -> tuple[str, float] | None:
+    """The closest of these segments to a point, and its distance in metres."""
+    here = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326).cast(Geography)
+    d = func.ST_Distance(SegmentRow.geom.cast(Geography), here)
+    row = s.execute(select(SegmentRow.segment_id, d).where(SegmentRow.segment_id.in_(segment_ids))
+                    .order_by(d, SegmentRow.segment_id).limit(1)).first()
+    return (row[0], row[1]) if row else None
 
 
 def segments_geojson(s: Session, bbox: tuple[float, float, float, float] | None) -> dict[str, Any]:
@@ -147,6 +161,13 @@ def get_run(s: Session, run_id: str) -> RunResult | None:
 def newest_run_id(s: Session, seed: int) -> str | None:
     return s.scalar(select(RunRow.run_id).where(RunRow.seed == seed)
                     .order_by(RunRow.created_at.desc(), RunRow.run_id.desc()).limit(1))
+
+
+def run_of_plan(s: Session, plan_id: str) -> RunResult | None:
+    """The newest run whose result is this plan."""
+    data = s.scalar(select(RunRow.data).where(RunRow.data["plan_id"].astext == plan_id)
+                    .order_by(RunRow.created_at.desc(), RunRow.run_id.desc()).limit(1))
+    return RunResult.model_validate(data) if data else None
 
 
 def save_message(s: Session, msg: NegotiationMessage) -> None:
@@ -239,6 +260,11 @@ def evidence_of_others(s: Session, seed: int, work_id: str) -> list[Evidence]:
     return _evidence(s, EvidenceRow.seed == seed, EvidenceRow.work_id != work_id)
 
 
+def all_evidence(s: Session, seed: int) -> list[Evidence]:
+    """Every photo of this test case, oldest first."""
+    return _evidence(s, EvidenceRow.seed == seed)
+
+
 def evidence_path(s: Session, evidence_id: str) -> str | None:
     return s.scalar(select(EvidenceRow.rel_path).where(EvidenceRow.evidence_id == evidence_id))
 
@@ -278,3 +304,31 @@ def confirmations(s: Session, seed: int, work_id: str) -> list[CitizenReport]:
          .where(CitizenReportRow.seed == seed, CitizenReportRow.kind == "confirmation", CitizenReportRow.work_id == work_id)
          .order_by(CitizenReportRow.created_at, CitizenReportRow.report_id))
     return [CitizenReport.model_validate(d) for d in s.scalars(q)]
+
+
+# ---------- auditor ----------
+def get_flag(s: Session, seed: int, key: str) -> AuditorFlag | None:
+    data = s.scalar(select(AuditorFlagRow.data).where(AuditorFlagRow.seed == seed, AuditorFlagRow.key == key))
+    return AuditorFlag.model_validate(data) if data else None
+
+
+def save_flag(s: Session, seed: int, key: str, rule: str, flag: AuditorFlag) -> None:
+    s.merge(AuditorFlagRow(flag_id=flag.flag_id, seed=seed, key=key, rule=rule, severity=flag.severity,
+                           work_id=flag.work_id, created_at=flag.created_at, data=flag.model_dump(mode="json")))
+    s.flush()
+
+
+def list_flags(s: Session, seed: int) -> list[AuditorFlag]:
+    q = (select(AuditorFlagRow.data).where(AuditorFlagRow.seed == seed)
+         .order_by(AuditorFlagRow.created_at.desc(), AuditorFlagRow.flag_id.desc()))
+    return [AuditorFlag.model_validate(d) for d in s.scalars(q)]
+
+
+def seqs_for(s: Session, entities: list[str]) -> list[int]:
+    return list(s.scalars(select(LedgerRow.seq).where(LedgerRow.entity.in_(entities)).order_by(LedgerRow.seq)))
+
+
+def entries_by_action(s: Session, actions: list[str]) -> list[LedgerEntry]:
+    """Record entries with these actions, oldest first."""
+    q = select(LedgerRow).where(LedgerRow.action.in_(actions)).order_by(LedgerRow.seq)
+    return [LedgerEntry.model_validate(r, from_attributes=True) for r in s.scalars(q)]

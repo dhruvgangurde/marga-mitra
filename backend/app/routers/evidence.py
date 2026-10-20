@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
 
 from backend.app import storage, store
+from backend.app.auditor import safe_audit
 from backend.app.db import session
 from backend.app.ids import next_id
 from backend.app.routers.city import DEPT_NAMES
@@ -76,13 +77,20 @@ async def add_evidence(
         ext = storage.check_photo(data)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+    return await add_photo(request.app, seed, work, kind, data, ext, lat, lon, taken_at)
+
+
+async def add_photo(app: FastAPI, seed: int, work: Work, kind: str, data: bytes, ext: str, lat: float | None,
+                    lon: float | None, taken_at: datetime | None) -> Evidence:
+    """Save a checked photo, store it and record it."""
+    work_id = work.work_id
     ev = await asyncio.to_thread(_save, seed, work_id, kind, data, ext, lat, lon, taken_at)
     if kind == "citizen":
         actor, summary = "resident", f"A resident added a photo for {work_id}"
     else:
         actor, summary = work.dept.value, f"{DEPT_NAMES[work.dept.value]} crew added the {kind} photo for {work_id}"
-    await request.app.state.wiring.deps.ledger_append(actor, "evidence.added", f"work:{work_id}", summary,
-                                                      ev.model_dump(mode="json"))
+    await app.state.wiring.deps.ledger_append(actor, "evidence.added", f"work:{work_id}", summary,
+                                              ev.model_dump(mode="json"))
     return ev
 
 
@@ -146,6 +154,7 @@ async def verify_work(app: FastAPI, seed: int, work_id: str) -> Verification:
         await deps.ledger_append("photo_check", "deposit.held", entity,
                                  f"{money} held for {work_id}; an inspector is called", ids)
     await deps.emit(WsEvent(type="verification.result", data=v.model_dump(mode="json"), ts=datetime.now(UTC)))
+    await safe_audit(app)
     return v
 
 

@@ -5,9 +5,11 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 
 from backend.app import store
+from backend.app.auditor import safe_audit
 from backend.app.db import session
 from backend.app.deps import in_session, with_windows
 from backend.app.ids import next_id
+from backend.app.schemas import WhatIfIn, WhatIfResult
 from contracts.interfaces import Deps
 from contracts.models import (
     Metrics,
@@ -35,6 +37,12 @@ def _saved_draft(plan: Plan, plan_id: str) -> Plan:
 def save_old_way(deps: Deps, scenario: Scenario) -> Plan:
     """The old way of a test case: first come, first dug, saved as P-OLD-<seed>."""
     return _saved_draft(deps.naive_plan(with_windows(deps, scenario)), f"P-OLD-{scenario.seed}")
+
+
+def current_scenario(app: FastAPI) -> Scenario:
+    """The stored test case with today's risk windows, as plans, rules and metrics see it."""
+    deps = app.state.wiring.deps
+    return with_windows(deps, deps.generate_scenario(app.state.seed))
 
 
 def _deps_and_scenario(request: Request, seed: int | None = None) -> tuple[Deps, Scenario]:
@@ -75,6 +83,7 @@ async def _run(app: FastAPI, run_id: str, seed: int, reason: str, base_plan_id: 
         logger.exception("Run %s failed", run_id)
         failed = RunResult(run_id=run_id, status="failed", note="The plan could not be made.")
         await asyncio.to_thread(in_session, store.update_run, failed)
+    await safe_audit(app)
 
 
 async def start_background_run(app: FastAPI, seed: int, reason: str) -> RunResult:
@@ -145,3 +154,35 @@ def negotiation(request: Request, run_id: str | None = None) -> list[Negotiation
     with session() as s:
         run_id = run_id or store.newest_run_id(s, request.app.state.seed)
         return store.list_messages(s, run_id) if run_id else []
+
+
+def _whatif_constraints(active: Plan, scenario: Scenario, work_id: str, delay_days: int) -> SolveConstraints:
+    works = {w.work_id: w for w in scenario.works}
+    starts = {a.work_id: a.start_day for a in active.assignments}
+    group = next(a.shared_group for a in active.assignments if a.work_id == work_id)
+    moving = {a.work_id for a in active.assignments if a.work_id == work_id or (group and a.shared_group == group)}
+    segments = {s for w in moving for s in works[w].segment_ids}
+    neighbours = {w for w in starts if w not in moving and w in works and set(works[w].segment_ids) & segments}
+    # Neighbours may only move later, so the answer shows the knock-on and nothing else changes.
+    min_start = {w: starts[w] + (delay_days if w == work_id else 0) for w in sorted(moving | neighbours)}
+    return SolveConstraints(min_start=min_start,
+                            pinned_start={w: s for w, s in sorted(starts.items()) if w not in min_start},
+                            shared_groups=sorted({a.shared_group for a in active.assignments if a.shared_group}))
+
+
+@router.post("/plan/whatif")
+def whatif(request: Request, body: WhatIfIn) -> WhatIfResult:
+    """The plan if one work started later. Nothing is saved, recorded or sent live."""
+    deps, scenario = request.app.state.wiring.deps, current_scenario(request.app)
+    work = next((w for w in scenario.works if w.work_id == body.work_id), None)
+    if work is None:
+        raise HTTPException(404, "Unknown work.")
+    if work.is_emergency:
+        raise HTTPException(422, "An emergency dig cannot be moved.")
+    active = in_session(store.active_plan, request.app.state.seed)
+    if active is None or all(a.work_id != work.work_id for a in active.assignments):
+        raise HTTPException(422, f"{work.work_id} is not in the current plan.")
+    constraints = _whatif_constraints(active, scenario, work.work_id, body.delay_days)
+    plan = deps.solve(scenario, constraints, PlanVariant.whatif).model_copy(update={
+        "plan_id": "P-WHATIF", "variant": PlanVariant.whatif, "status": PlanStatus.draft, "base_plan_id": active.plan_id})
+    return WhatIfResult(plan=plan, diff=deps.plan_diff(active, plan, scenario), metrics=deps.compute_metrics(plan, scenario))

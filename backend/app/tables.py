@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Any
 
 from geoalchemy2 import Geometry
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -139,6 +139,19 @@ class CitizenReportRow(Base):
     report_id: Mapped[str] = mapped_column(primary_key=True)
     seed: Mapped[int]
     kind: Mapped[str]
+    work_id: Mapped[str | None]
+    created_at: Mapped[datetime]
+    data: Mapped[dict[str, Any]]
+
+
+class AuditorFlagRow(Base):
+    __tablename__ = "auditor_flags"
+    __table_args__ = (UniqueConstraint("seed", "key"),)
+    flag_id: Mapped[str] = mapped_column(primary_key=True)
+    seed: Mapped[int] = mapped_column(index=True)
+    key: Mapped[str]  # "<rule>:<subject>"
+    rule: Mapped[str]
+    severity: Mapped[str]
     work_id: Mapped[str | None]
     created_at: Mapped[datetime]
     data: Mapped[dict[str, Any]]

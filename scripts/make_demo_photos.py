@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 from PIL import ExifTags, Image, ImageDraw, ImageEnhance
+from shapely.geometry import LineString
 
 from backend.app.verify.exif import INDIA
 from contracts.models import Scenario
@@ -76,13 +77,13 @@ def with_facts(img: Image.Image, lat: float | None, lon: float | None, taken: da
 
 
 def site_point(scenario: Scenario, work_id: str, metres_north: float) -> tuple[float, float]:
-    """(lat, lon) of the middle of the work's middle segment, moved north."""
+    """(lat, lon) halfway along the work's middle segment, moved north."""
     work = next(w for w in scenario.works if w.work_id == work_id)
     seg_id = work.segment_ids[len(work.segment_ids) // 2]
     coords = next(s for s in scenario.segments if s.segment_id == seg_id).coords
-    lon = (coords[0][0] + coords[-1][0]) / 2
-    lat = (coords[0][1] + coords[-1][1]) / 2
-    return round(lat + metres_north / METRES_PER_DEGREE_LAT, 6), round(lon, 6)
+    # along the line, not the average of its ends: on a bent road that average sits off the road
+    mid = LineString(coords).interpolate(0.5, normalized=True)
+    return round(mid.y + metres_north / METRES_PER_DEGREE_LAT, 6), round(mid.x, 6)
 
 
 def _at(day: int, hour: int, minute: int) -> datetime:
@@ -105,6 +106,8 @@ def main() -> None:
         ("T-230-after.jpg", "T-230", "after", reuse_copy(make_photo("open", 2211)), 9, _at(10, 9, 40), "phone"),
         ("P-125-before.jpg", "P-125", "before", make_photo("open", 1251), 15, _at(8, 9, 0), "photo"),
         ("P-125-after.jpg", "P-125", "after", make_photo("dark", 1251), 15, _at(9, 18, 30), "photo"),
+        ("D-415-before.jpg", "D-415", "before", make_photo("open", 4151), 10, _at(2, 8, 30), "photo"),
+        ("D-415-after.jpg", "D-415", "after", make_photo("patched", 4151), 10, _at(5, 16, 45), "photo"),
     ]
     OUT.mkdir(parents=True, exist_ok=True)
     listing = []

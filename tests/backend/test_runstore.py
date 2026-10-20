@@ -34,7 +34,7 @@ async def test_falls_back_to_memory(monkeypatch, caplog):
     with caplog.at_level(logging.WARNING):
         assert await _open(SimpleNamespace(start_run=workflow.start_run)) == "memory"
     assert "Paused planning runs are kept in memory only (InterfaceError)" in caplog.text
-    assert calls == []
+    assert [type(c).__name__ for c in calls] == ["InMemorySaver"]  # only the reset on exit, never a Postgres saver
 
 
 def test_keeps_runs_in_postgres(db):
@@ -45,6 +45,7 @@ def test_keeps_runs_in_postgres(db):
         # psycopg's async mode needs the selector loop, also on Windows
         found = asyncio.run(_open(SimpleNamespace(start_run=workflow.start_run)), loop_factory=asyncio.SelectorEventLoop)
         assert found == "postgres"
+        assert type(workflow._saver).__name__ == "InMemorySaver"  # the closed connection's saver is gone on exit
         with engine().connect() as c:
             assert c.execute(text("SELECT to_regclass('public.checkpoints')")).scalar() is not None
     finally:
