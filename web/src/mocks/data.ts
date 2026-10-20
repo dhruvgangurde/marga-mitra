@@ -147,7 +147,8 @@ function plan(
   solveMs: number, base: string | null,
 ): Plan {
   return {
-    plan_id: id, seed: 1, variant, status, created_at: created, assignments, unplanned: [], notes: [],
+    plan_id: id, seed: 1, variant, status, created_at: created, assignments, unplanned: [],
+    notes: id === 'P-0007' || id === 'P-0008' ? ['Munchur Road: 4 digs become 2'] : [],
     objective: 0, solve_ms: solveMs, base_plan_id: base,
   };
 }
@@ -312,6 +313,11 @@ export const APPROVAL_HISTORY: Approval[] = [
     approval_id: 'A-0000', plan_id: 'P-0006', run_id: 'RUN-0006', tier: 'ward_engineer', status: 'approved',
     summary: 'Plan for 26 Oct – 22 Nov', requested_at: at('2026-10-26', '17:35:00'),
     decided_at: at('2026-10-26', '17:40:00'), decided_by: 'ward_engineer', reason: null,
+  },
+  {
+    approval_id: 'A-EM-1', plan_id: 'P-0006', run_id: 'RUN-0006', tier: 'auto', status: 'approved',
+    summary: 'Emergency dig, Idya Road', requested_at: nov10('09:14:00'),
+    decided_at: nov10('09:14:00'), decided_by: 'rules', reason: 'Burst water pipe',
   },
 ];
 

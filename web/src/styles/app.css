@@ -137,3 +137,10 @@
 .mm-app-risk__dot { flex: 0 0 28px; display: grid; place-items: center; width: 28px; height: 28px; box-sizing: border-box; border: 1.5px solid var(--ink); border-radius: 50%; }
 .mm-app-risk__diffs { margin: 0; padding: 0; list-style: none; }
 .mm-app-risk__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 0; }
+/* Approvals tab */
+.mm-app-appr { display: flex; flex-direction: column; gap: 16px; }
+.mm-app-appr__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mm-app-appr__tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.mm-app-appr__diffs { margin: 0; padding: 0; list-style: none; }
+.mm-app-appr__actions { display: flex; align-items: center; gap: 12px; }
+.mm-app-appr__empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 0; }

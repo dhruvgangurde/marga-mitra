@@ -12,6 +12,7 @@ import type { PlanMapHandle } from '../../map/PlanMap';
 import { useLiveEvent } from '../../api/live';
 import { CopilotDock } from './CopilotDock';
 import { NegotiationTab } from './NegotiationTab';
+import { ApprovalsTab } from './ApprovalsTab';
 import { RiskTab } from './RiskTab';
 import { WorkDrawer } from './WorkDrawer';
 import { WorksTab } from './WorksTab';
@@ -31,13 +32,6 @@ const TILES: { kind: MetricKind; field: keyof Metrics; label: string; unit?: str
   { kind: 'trench_hours_in_rain', field: 'trench_hours_in_rain', label: 'Trench-hours in rain', unit: 'h' },
   { kind: 'days_late', field: 'days_late', label: 'Days late', unit: 'days' },
 ];
-
-const PART_TWO: Record<TabId, string> = {
-  negotiation: 'Part 2 adds the live conversation between the department agents here.',
-  works: 'Part 2 adds the list of works, with their dates and status, here.',
-  risk: 'Part 2 adds the rain, air and event forecasts, with ways to change them, here.',
-  approvals: 'Part 2 adds the plans waiting for approval, with approve and reject, here.',
-};
 
 export default function CommandScreen() {
   const [params, setParams] = useSearchParams();
@@ -217,7 +211,7 @@ export default function CommandScreen() {
             ) : tab === 'risk' ? (
               <RiskTab onReview={() => setParam('tab', 'approvals')} />
             ) : (
-              <p className="body" style={{ margin: 0, color: 'var(--ink-3)' }}>{PART_TWO[tab]}</p>
+              <ApprovalsTab />
             )}
           </div>
         </section>
