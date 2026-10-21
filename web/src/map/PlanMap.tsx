@@ -5,7 +5,7 @@ import type { GeoJSONSource } from 'maplibre-gl';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { dayRange, workStatusBadge } from '../api/format';
-import type { RiskWindow, SegmentCollection, WorkView } from '../api/types';
+import type { RiskWindow, SegmentCollection, SegmentFeature, WorkView } from '../api/types';
 import { DeptChip, Icon, StatusBadge } from '../ui';
 import { clashPoints, midpoint, riskAreas, roadsData, segmentIndex, shownRisk, shownViews, workCoords, workLines } from './geo';
 import type { Coord } from './geo';
@@ -40,6 +40,8 @@ function setData(map: maplibregl.Map, id: string, data: GeoJSON.FeatureCollectio
   (map.getSource(id) as GeoJSONSource | undefined)?.setData(data);
 }
 
+const NO_SEGMENTS: SegmentFeature[] = [];
+
 export const PlanMap = forwardRef<PlanMapHandle, PlanMapProps>(function PlanMap(
   { views, segments, riskWindows, day, selectedWorkId, onSelectWork },
   ref,
@@ -50,8 +52,13 @@ export const PlanMap = forwardRef<PlanMapHandle, PlanMapProps>(function PlanMap(
   const [ready, setReady] = useState(false);
   const [hover, setHover] = useState<{ id: string; x: number; y: number } | null>(null);
 
-  const index = useMemo(() => segmentIndex(segments?.features ?? []), [segments]);
+  const index = useMemo(() => segmentIndex(segments?.features ?? NO_SEGMENTS), [segments]);
   const shown = useMemo(() => shownViews(views, day), [views, day]);
+  // Each layer is built once per change of its input, and sent to the map only then.
+  const roadsLayer = useMemo(() => roadsData(segments?.features ?? NO_SEGMENTS, day), [segments, day]);
+  const worksLayer = useMemo(() => workLines(shown, index, selectedWorkId), [shown, index, selectedWorkId]);
+  const clashLayer = useMemo(() => clashPoints(shown, index), [shown, index]);
+  const riskLayer = useMemo(() => riskAreas(shownRisk(riskWindows, day), index), [riskWindows, day, index]);
   const live = useRef({ shown, index, onSelectWork });
   live.current = { shown, index, onSelectWork };
 
@@ -122,21 +129,21 @@ export const PlanMap = forwardRef<PlanMapHandle, PlanMapProps>(function PlanMap(
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    setData(map, 'roads', roadsData(segments?.features ?? [], day));
-  }, [ready, segments, day]);
+    setData(map, 'roads', roadsLayer);
+  }, [ready, roadsLayer]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    setData(map, 'works', workLines(shown, index, selectedWorkId));
-    setData(map, 'clashes', clashPoints(shown, index));
-  }, [ready, shown, index, selectedWorkId]);
+    setData(map, 'works', worksLayer);
+    setData(map, 'clashes', clashLayer);
+  }, [ready, worksLayer, clashLayer]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    setData(map, 'risk', riskAreas(shownRisk(riskWindows, day), index));
-  }, [ready, riskWindows, day, index]);
+    setData(map, 'risk', riskLayer);
+  }, [ready, riskLayer]);
 
   // Emergency works get a pulsing siren marker.
   useEffect(() => {

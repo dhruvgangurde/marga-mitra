@@ -1,8 +1,12 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { actorLabel, dateTimeLabel, dayRange, errorText, shortTime, signedInr } from '../../api/format';
-import { useApprovals, useDecideApproval, useNegotiation, useOldWayPlan, usePlan, usePlanDiff, usePlanMetrics } from '../../api/hooks';
-import type { Approval, Tier } from '../../api/types';
+import { actorLabel, dateTimeLabel, dayRange, errorText, shortTime, signedInr, timeLabel } from '../../api/format';
+import { USE_MOCKS } from '../../api/client';
+import {
+  useApprovals, useDecideApproval, useExplain, useLedger, useNegotiation, useOldWayPlan, usePlan, usePlanDiff, usePlanMetrics,
+  useRulesCheck,
+} from '../../api/hooks';
+import type { Approval, LedgerEntry, Tier } from '../../api/types';
 import { Banner, Button, Card, DiffRow, Icon, StatusBadge, StepList, Tag, TextField } from '../../ui';
 
 const TIERS: Record<Tier, { text: string; detail: string }> = {
@@ -22,6 +26,35 @@ interface Decided {
 function digsTag(text: string | undefined): string | null {
   const found = text?.match(/(?:Option [A-Z]\.\s*)?(.+?):\s*(\d+) digs become (\d+)/);
   return found ? `${found[2]} digs \u2192 ${found[3]} on ${found[1]}` : null;
+}
+
+// What the approval card is called: the summary up to the first " · ".
+const cardTitle = (summary: string): string => summary.split(' · ')[0];
+
+const oneDecimal = (n: number): string => (Math.round(n * 10) / 10).toFixed(1);
+
+interface Past {
+  key: string;
+  at: string;
+  title: string;
+  badge: 'emergency' | 'approved' | 'fail';
+  word: string;
+  line: string;
+}
+
+// On the real server: every decided approval and every emergency dig, newest first.
+function pastItems(approvals: Approval[], emergencies: LedgerEntry[]): Past[] {
+  const decided: Past[] = approvals.map((a) => {
+    const at = a.decided_at ?? a.requested_at;
+    const by = actorLabel(a.decided_by ?? 'system');
+    return a.status === 'rejected'
+      ? { key: a.approval_id, at, title: cardTitle(a.summary), badge: 'fail', word: 'Rejected', line: `Rejected by ${by} · ${dateTimeLabel(at)}${a.reason ? ': ' + a.reason : ''}` }
+      : { key: a.approval_id, at, title: cardTitle(a.summary), badge: 'approved', word: 'Approved', line: `Approved by ${by} · ${dateTimeLabel(at)}` };
+  });
+  const urgent: Past[] = emergencies.map((e) => ({
+    key: `ledger-${e.seq}`, at: e.ts, title: 'Emergency dig', badge: 'emergency', word: 'Emergency', line: `${e.summary} · ${timeLabel(e.ts)}`,
+  }));
+  return [...decided, ...urgent].sort((a, b) => b.at.localeCompare(a.at));
 }
 
 function earlier(a: Approval): { badge: 'emergency' | 'approved' | 'fail'; word: string; line: string } {
@@ -58,8 +91,28 @@ export function ApprovalsTab() {
   const old = useOldWayPlan().data;
   const planMetrics = usePlanMetrics(current?.plan_id).data;
   const oldMetrics = usePlanMetrics(old?.plan_id).data;
+  const explained = useExplain(current?.plan_id).data;
+  const rulesLine = useRulesCheck(current?.plan_id);
+  const ledger = useLedger(200).data ?? [];
 
-  const digs = digsTag(plan?.notes.find((n) => /digs become/.test(n)) ?? run.find((m) => m.type === 'DECISION')?.body);
+  // The road tag needs a decision that names a road; otherwise the average digs per road is shown.
+  const road = digsTag(plan?.notes.find((n) => /digs become/.test(n)) ?? run.find((m) => m.type === 'DECISION')?.body);
+  const digsOld = oldMetrics?.digs_per_road;
+  const digsNow = planMetrics?.digs_per_road;
+  const digs = road ?? (digsOld !== undefined && digsNow !== undefined && oldMetrics && planMetrics && oldMetrics.plan_id !== planMetrics.plan_id
+    && oneDecimal(digsOld) !== oneDecimal(digsNow) ? `Digs per road ${oneDecimal(digsOld)} → ${oneDecimal(digsNow)}` : null);
+
+  // The first rules step: the explanation when the server has one, else what the rules check wrote down.
+  const rule = explained?.rules.find((r) => r.severity !== 'ok') ?? explained?.rules[0];
+  const rulesStep = rule
+    ? { text: rule.name, detail: rule.detail, status: rule.severity === 'ok' ? ('done' as const) : ('needs' as const) }
+    : rulesLine
+      ? {
+        text: rulesLine,
+        detail: rulesLine === 'Rules check passed' ? 'No protected road is dug; every deposit is held' : undefined,
+        status: /failed/i.test(rulesLine) ? ('needs' as const) : ('done' as const),
+      }
+      : { text: 'Rules check', detail: undefined, status: 'waiting' as const };
   const rainOld = oldMetrics?.trench_hours_in_rain ?? 0;
   const rainNow = planMetrics?.trench_hours_in_rain ?? 0;
 
@@ -79,9 +132,13 @@ export function ApprovalsTab() {
     );
   };
 
-  const history = all
+  const earlierApprovals = all
     .filter((a) => a.status !== 'pending' && a.approval_id !== current?.approval_id)
     .sort((a, b) => (b.decided_at ?? b.requested_at).localeCompare(a.decided_at ?? a.requested_at));
+  // The mock keeps its own story; the real server shows what was decided and every emergency dig.
+  const history: Past[] = USE_MOCKS
+    ? earlierApprovals.map((a) => ({ key: a.approval_id, at: a.decided_at ?? a.requested_at, title: a.summary, ...earlier(a) }))
+    : pastItems(earlierApprovals, ledger.filter((e) => e.action === 'emergency.allowed'));
 
   const tier = current ? TIERS[current.tier] : null;
   const approved = decided?.decision === 'approve';
@@ -91,7 +148,7 @@ export function ApprovalsTab() {
       {current && tier ? (
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="mm-app-appr__head">
-            <h3 className="title" style={{ margin: 0 }}>{current.summary}</h3>
+            <h3 className="title" style={{ margin: 0 }}>{cardTitle(current.summary)}</h3>
             <StatusBadge status={decided ? (approved ? 'approved' : 'fail') : 'pending'}>
               {decided ? (approved ? 'Approved' : 'Rejected') : 'Waiting'}
             </StatusBadge>
@@ -105,7 +162,7 @@ export function ApprovalsTab() {
           </div>
           <StepList
             steps={[
-              { text: 'Rules check passed', detail: 'No protected road is dug; every deposit is held', status: 'done' },
+              rulesStep,
               { text: tier.text, detail: tier.detail, status: approved ? 'done' : 'needs' },
               { text: 'Department heads are told', detail: 'After you approve', status: approved ? 'done' : 'waiting' },
             ]}
@@ -162,18 +219,15 @@ export function ApprovalsTab() {
       {history.length > 0 ? (
         <>
           <p className="mono-label" style={{ margin: 0, color: 'var(--ink-3)' }}>Earlier</p>
-          {history.map((a) => {
-            const e = earlier(a);
-            return (
-              <Card key={a.approval_id} flat style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div className="mm-app-appr__head">
-                  <span className="body-strong">{a.summary}</span>
-                  <StatusBadge status={e.badge}>{e.word}</StatusBadge>
-                </div>
-                <span className="small" style={{ color: 'var(--ink-3)' }}>{e.line}</span>
-              </Card>
-            );
-          })}
+          {history.map((h) => (
+            <Card key={h.key} flat style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div className="mm-app-appr__head">
+                <span className="body-strong">{h.title}</span>
+                <StatusBadge status={h.badge}>{h.word}</StatusBadge>
+              </div>
+              <span className="small" style={{ color: 'var(--ink-3)' }}>{h.line}</span>
+            </Card>
+          ))}
         </>
       ) : null}
     </div>

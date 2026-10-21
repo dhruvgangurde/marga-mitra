@@ -1,5 +1,6 @@
 // The only way screens get data. Phase 3 points the same hooks at the real API.
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { USE_MOCKS } from './client';
 import {
   addEvent, confirmRoad, copilot, decideApproval, forecastOverride, getApprovals, getAuditorFlags, getDepartments,
   getEvalsSummary, getEvidence, getHealth, getLedger, getNegotiation, getNoDig, getPlan, getPlanDiff, getPlanMetrics,
@@ -8,7 +9,7 @@ import {
 } from './endpoints';
 import type {
   Approval, ConfirmBody, CopilotBody, DecideBody, EmergencyInput, EventBody, EvidenceInput, ForecastOverrideBody, Plan,
-  WhatIfBody,
+  RunResult, WhatIfBody,
 } from './types';
 
 // Every key starts with the name that live events and mutations invalidate.
@@ -24,6 +25,7 @@ export const keys = {
   diff: (planId: string, against: string) => ['plans', 'diff', planId, against] as const,
   run: (runId: string) => ['plans', 'run', runId] as const,
   metrics: (planId: string) => ['metrics', planId] as const,
+  shownRun: ['shownRun'] as const,
   negotiation: (runId?: string) => ['negotiation', runId ?? 'latest'] as const,
   risk: ['risk'] as const,
   approvals: (status?: Approval['status']) => ['approvals', status ?? 'all'] as const,
@@ -37,6 +39,22 @@ export const keys = {
 
 export function invalidate(qc: QueryClient, ...roots: string[]): Promise<unknown> {
   return Promise.all(roots.map((root) => qc.invalidateQueries({ queryKey: [root] })));
+}
+
+// The shown run is the one with the highest number. Ids without a number never take its place.
+const runNumber = (id: string): number | null => {
+  const found = /^RUN-(\d+)$/.exec(id);
+  return found ? Number(found[1]) : null;
+};
+
+export function noteRun(qc: QueryClient, runId: string | null | undefined): void {
+  if (!runId) return;
+  const next = runNumber(runId);
+  if (next === null) return;
+  const current = qc.getQueryData<string | null>(keys.shownRun);
+  const now = current ? runNumber(current) : null;
+  if (now !== null && now >= next) return;
+  qc.setQueryData<string | null>(keys.shownRun, runId);
 }
 
 // ---------- picking a plan ----------
@@ -58,9 +76,12 @@ const pickShown = (plans: Plan[]): Plan | undefined =>
 // ---------- queries ----------
 export const useHealth = () => useQuery({ queryKey: keys.health, queryFn: getHealth });
 
-export const useDepartments = () => useQuery({ queryKey: keys.departments, queryFn: getDepartments });
+// The roads and the departments do not change while the app is open.
+const FOREVER = { staleTime: Infinity, gcTime: Infinity } as const;
 
-export const useSegments = () => useQuery({ queryKey: keys.segments, queryFn: () => getSegments() });
+export const useDepartments = () => useQuery({ queryKey: keys.departments, queryFn: getDepartments, ...FOREVER });
+
+export const useSegments = () => useQuery({ queryKey: keys.segments, queryFn: () => getSegments(), ...FOREVER });
 
 export const useWorks = (planId?: string) => useQuery({ queryKey: keys.works(planId), queryFn: () => getWorks(planId) });
 
@@ -92,9 +113,32 @@ export const useRun = (runId?: string) => useQuery({
   queryKey: keys.run(runId ?? ''), queryFn: () => getRun(runId as string), enabled: Boolean(runId),
 });
 
-export const useNegotiation = (runId?: string) => useQuery({
-  queryKey: keys.negotiation(runId), queryFn: () => getNegotiation(runId),
-});
+export function useShownRunId(): string | undefined {
+  const qc = useQueryClient();
+  const query = useQuery<string | null>({
+    queryKey: keys.shownRun,
+    queryFn: () => qc.getQueryData<string | null>(keys.shownRun) ?? null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+  return query.data ?? undefined;
+}
+
+// With no run given, this is the run on screen: the newest one anyone has told us about.
+export function useNegotiation(runId?: string) {
+  const qc = useQueryClient();
+  const shown = useShownRunId();
+  const id = runId ?? shown;
+  return useQuery({
+    queryKey: keys.negotiation(id),
+    queryFn: async () => {
+      const list = await getNegotiation(id);
+      noteRun(qc, list[list.length - 1]?.run_id);
+      return list;
+    },
+    placeholderData: runId ? undefined : (previous) => previous,
+  });
+}
 
 export const useRiskWindows = () => useQuery({ queryKey: keys.risk, queryFn: getRiskWindows });
 
@@ -116,6 +160,22 @@ export const useVerification = (workId?: string) => useQuery({
   queryKey: keys.verification(workId ?? ''), queryFn: () => getVerification(workId as string), enabled: Boolean(workId),
 });
 
+// Why a new plan cannot be asked for right now: the scheduler is working, or a plan waits for approval.
+export function usePlanBusy(): { running: boolean; waiting: boolean } {
+  const shown = useShownRunId();
+  const run = useRun(shown).data;
+  const pending = useApprovals('pending').data ?? [];
+  return { running: run?.status === 'running', waiting: pending.length > 0 };
+}
+
+// The rules check of a plan, as the ledger wrote it: "Rules check passed" or "Rules check failed: ...".
+export function useRulesCheck(planId?: string): string | undefined {
+  const entries = useLedger(200).data;
+  if (!planId) return undefined;
+  if (USE_MOCKS) return 'Rules check passed';
+  return entries?.find((e) => e.action === 'rules.checked' && e.entity === `plan:${planId}`)?.summary;
+}
+
 export const useExplain = (entity?: string) => useQuery({
   queryKey: keys.explain(entity ?? ''), queryFn: () => explain(entity as string), enabled: Boolean(entity),
 });
@@ -127,7 +187,10 @@ export function useOrchestrate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => orchestrate(),
-    onSuccess: () => invalidate(qc, 'plans', 'works', 'approvals', 'negotiation'),
+    onSuccess: (result: RunResult) => {
+      noteRun(qc, result.run_id);
+      return invalidate(qc, 'plans', 'works', 'approvals', 'negotiation');
+    },
   });
 }
 
@@ -135,7 +198,10 @@ export function useForecastOverride() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: ForecastOverrideBody) => forecastOverride(body),
-    onSuccess: () => invalidate(qc, 'risk', 'plans', 'works', 'approvals', 'negotiation'),
+    onSuccess: (result: RunResult) => {
+      noteRun(qc, result.run_id);
+      return invalidate(qc, 'risk', 'plans', 'works', 'approvals', 'negotiation');
+    },
   });
 }
 
@@ -152,7 +218,12 @@ export function useDecideApproval() {
   return useMutation({
     mutationFn: ({ approvalId, decision, by, reason }: DecideBody & { approvalId: string }) =>
       decideApproval(approvalId, { decision, by, reason }),
-    onSuccess: () => invalidate(qc, 'approvals', 'plans', 'works', 'metrics', 'ledger'),
+    onSuccess: (result: RunResult) => {
+      noteRun(qc, result?.run_id);
+      return invalidate(qc, 'approvals', 'plans', 'works', 'metrics', 'ledger');
+    },
+    // A refused decision (for example "already decided") leaves the list out of date.
+    onError: () => invalidate(qc, 'approvals'),
   });
 }
 

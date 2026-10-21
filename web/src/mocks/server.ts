@@ -816,7 +816,7 @@ export function explain(entity: string): Promise<Explanation> {
     const id = entity.includes(':') ? entity.split(':')[1] : entity;
     const plan = state.plans.find((p) => p.plan_id === id);
     if (plan) {
-      const rules = (explainWork('W-104') as Explanation).rules;
+      const rules: Explanation['rules'] = [];
       const reasons = diffPlans(plan, oldPlan()).map((c) => ({
         icon: 'clock', lead: c.title, text: c.reason, source: 'the scheduler, 10:02',
       }));

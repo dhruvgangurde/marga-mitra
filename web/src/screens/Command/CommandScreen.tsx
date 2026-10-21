@@ -3,10 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { compareLabel, dayLabel, errorText, metricDelta, TODAY_DAY } from '../../api/format';
 import type { MetricKind } from '../../api/format';
 import {
-  useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
+  useApprovals, useForecastOverride, useNegotiation, useOrchestrate, useOldWayPlan, usePlanBusy, usePlanDiff, usePlanMetrics, useRiskWindows, useSegments, useShownPlan, useWorks,
 } from '../../api/hooks';
 import type { Metrics } from '../../api/types';
-import { mapLegendCounts } from '../../map/geo';
+import { USE_MOCKS } from '../../api/client';
+import { clashPoints, mapLegendCounts, segmentIndex } from '../../map/geo';
 import { PlanMap } from '../../map/PlanMap';
 import type { PlanMapHandle } from '../../map/PlanMap';
 import { useLiveEvent } from '../../api/live';
@@ -20,8 +21,6 @@ import { Banner, Button, Card, Icon, MapLegend, MetricTile, Tabs, TimelineSlider
 
 const TABS = ['negotiation', 'works', 'risk', 'approvals'] as const;
 type TabId = (typeof TABS)[number];
-
-const RAIN_TOAST = 'Plan updated. 3 works moved out of the rain window.';
 
 const WEEK_TICKS = ['2 Nov', '9 Nov', '16 Nov', '23 Nov'];
 
@@ -79,14 +78,20 @@ export default function CommandScreen() {
     setToast({ text, view });
     toastTimer.current = setTimeout(() => setToast(null), 6000);
   };
+  // The rain toast waits for the new plan and its changes, so the count is the real one.
+  const rainToast = useRef<string | null>(USE_MOCKS && params.get('demo') === 'rain' ? '' : null);
+  const rainDiff = usePlanDiff(plan?.plan_id, plan?.base_plan_id ?? undefined).data;
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
   useEffect(() => {
-    if (params.get('demo') === 'rain') showToast(RAIN_TOAST, true);
-    return () => clearTimeout(toastTimer.current);
+    if (rainToast.current === null || !plan || !rainDiff) return;
+    if (plan.status !== 'waiting_approval' || !plan.base_plan_id || plan.plan_id === rainToast.current) return;
+    rainToast.current = null;
+    showToast(`Plan updated. ${rainDiff.length} works moved out of the rain window.`, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [plan, rainDiff]);
   useLiveEvent('plan.updated', (data) => {
     const hasRain = windows.some((w) => w.kind === 'rain' && w.source === 'override');
-    if (data.status === 'waiting_approval' && hasRain) showToast(RAIN_TOAST, true);
+    if (data.status === 'waiting_approval' && hasRain) rainToast.current = plan?.plan_id ?? '';
   });
   // Play steps the day forward every 700 ms and stops at the last day.
   useEffect(() => {
@@ -107,6 +112,7 @@ export default function CommandScreen() {
   };
 
   const orchestrate = useOrchestrate();
+  const busy = usePlanBusy();
   const replan = () => orchestrate.mutate(undefined, {
     onSuccess: (run) => {
       if (run.status === 'running') setParam('tab', 'negotiation');
@@ -120,10 +126,10 @@ export default function CommandScreen() {
     { onSuccess: () => { setDay(12); setParam('tab', 'risk'); } },
   );
 
-  useLiveEvent('ui.action', (data) => {
-    const args = (data.args ?? {}) as Record<string, unknown>;
+  // The copilot's screen actions. The dock calls this for its own turn only.
+  const applyAction = (action: string, args: Record<string, unknown>) => {
     const workId = typeof args.work_id === 'string' ? args.work_id : null;
-    switch (data.action) {
+    switch (action) {
       case 'select_work':
       case 'open_drawer':
         if (workId) setParam('work', workId);
@@ -146,7 +152,34 @@ export default function CommandScreen() {
       default:
         break;
     }
-  });
+  };
+
+  // Development only, on the real server: the map's own clash rules must agree with the plan's count.
+  const clashWarned = useRef(false);
+  useEffect(() => {
+    if (!import.meta.env.DEV || USE_MOCKS || clashWarned.current || !metrics || !segments || views.length === 0) return;
+    const found = clashPoints(views, segmentIndex(segments.features)).features.length;
+    if (found !== metrics.clashes) {
+      clashWarned.current = true;
+      // eslint-disable-next-line no-console
+      console.warn(`Map clashes ${found} \u2260 plan clashes ${metrics.clashes}`);
+    }
+  }, [metrics, segments, views]);
+
+  // A link to a work that is not in this plan is dropped, with one note.
+  const missing = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedWorkId) {
+      missing.current = null;
+      return;
+    }
+    if (!worksQ.isSuccess || views.some((v) => v.work.work_id === selectedWorkId)) return;
+    if (missing.current === selectedWorkId) return;
+    missing.current = selectedWorkId;
+    setParam('work', null);
+    showToast(`Work ${selectedWorkId} is not in this plan.`, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWorkId, worksQ.isSuccess, views]);
 
   const loading = planQ.isLoading || worksQ.isLoading;
   const failed = planQ.isError || worksQ.isError;
@@ -205,7 +238,7 @@ export default function CommandScreen() {
 
       <div className="mm-app-cmd__copilot">
         <div className="mm-app-cmd__copilot-in">
-          <CopilotDock context={{ day, tab, selected_work: selectedWorkId, plan_id: plan?.plan_id }} />
+          <CopilotDock context={{ day, tab, selected_work: selectedWorkId, plan_id: plan?.plan_id }} onAction={applyAction} />
         </div>
       </div>
 
@@ -229,12 +262,17 @@ export default function CommandScreen() {
           variant="ghost"
           icon="rain"
           onClick={simulateRain}
-          disabled={rainOn || forecast.isPending}
+          disabled={rainOn || forecast.isPending || busy.running}
           title={rainOn ? 'Rain is already simulated' : undefined}
         >
           Simulate rain
         </Button>
-        <Button variant="secondary" icon="refresh" onClick={replan} disabled={orchestrate.isPending}>Re-plan</Button>
+        <Button variant="secondary" icon="refresh" onClick={replan}
+          disabled={orchestrate.isPending || busy.running || busy.waiting}
+          title={busy.running ? 'The scheduler is working on a plan' : busy.waiting ? 'Approve or reject the waiting plan first' : undefined}
+        >
+          Re-plan
+        </Button>
       </div>
 
       <aside className={folded ? 'mm-app-cmd__panel mm-app-cmd__panel--folded' : 'mm-app-cmd__panel'}>
